@@ -1,0 +1,34 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "karma-builder-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-11-01",
+
+  // database_id подставляется после `wrangler d1 create karma-builder`.
+  // Для `wrangler dev --local` и `d1 execute --local` значение не используется.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "karma-builder",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  "vars": {
+    // База, от которой строятся ссылки на ревью: <REVIEW_BASE_URL>/r/{token}
+    "REVIEW_BASE_URL": "http://localhost:5173",
+    // Origin'ы, которым разрешён CORS. "*" — любой: все приватные маршруты
+    // авторизуются заголовком initData, а не cookie, поэтому это не дыра.
+    "ALLOWED_ORIGINS": "*",
+    // Часы жизни ссылки на ревью.
+    "REVIEW_TTL_HOURS": "72",
+    // username бота без @: из него собирается ?startapp-ссылка в друзья.
+    "BOT_USERNAME": "karma_builder_bot"
+  },
+
+  // BOT_TOKEN — секрет: wrangler secret put BOT_TOKEN
+  // Локально кладётся в .dev.vars (в git не попадает).
+
+  "observability": { "enabled": true }
+}

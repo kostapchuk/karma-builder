@@ -6,8 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "npx serve out",
-    "typecheck": "tsc --noEmit",
-    "test": "tsx --test \"tests/*.test.ts\""
+    "typecheck": "tsc --noEmit && tsc -p workers/tsconfig.json --noEmit",
+    "test": "tsx --test \"tests/*.test.ts\"",
+    "dev:api": "wrangler dev --config workers/wrangler.jsonc",
+    "db:migrate:local": "wrangler d1 migrations apply karma-builder --local --config workers/wrangler.jsonc",
+    "db:migrate": "wrangler d1 migrations apply karma-builder --remote --config workers/wrangler.jsonc",
+    "deploy:api": "wrangler deploy --config workers/wrangler.jsonc",
+    "test:api": "tsx --test \"workers/tests/*.test.ts\"",
+    "test:e2e": "tsx --test workers/tests/api.e2e.ts"
   },
   "dependencies": {
     "@telegram-apps/sdk-react": "^3.3.9",
@@ -18,10 +24,12 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260817.1",
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "tsx": "^4.23.12",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "wrangler": "^4.123.0"
   }
 }

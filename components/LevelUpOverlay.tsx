@@ -7,7 +7,8 @@ import { badgeDefinition } from '@/lib/karma/badges';
 import type { Badge } from '@/lib/karma/types';
 
 interface Props {
-  level: number;
+  /** null — праздновать нечего кроме бейджей: карма выросла, но уровень тот же */
+  level: number | null;
   badges: Badge[];
   onDismiss(): void;
 }
@@ -23,8 +24,10 @@ export function LevelUpOverlay({ level, badges, onDismiss }: Props) {
     <div className="levelup" onClick={onDismiss} role="presentation">
       <div className="inner">
         <div className="ring">🎉</div>
-        <h2>Уровень {level}</h2>
-        <div className="hint">{levelTitle(level)}</div>
+        <h2>{level === null ? 'Новый бейдж' : `Уровень ${level}`}</h2>
+        <div className="hint">
+          {level === null ? 'Дело подтвердили рецензенты' : levelTitle(level)}
+        </div>
         {badges.length > 0 && (
           <div className="badge-grid" style={{ marginTop: 20 }}>
             {badges.map((badge) => {

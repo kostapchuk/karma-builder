@@ -18,8 +18,16 @@ import {
   viewport,
 } from '@telegram-apps/sdk-react';
 
-let initialized = false;
 let inTelegramEnv = false;
+let devInitDataRaw: string | null = null;
+
+/**
+ * initData дев-мока — та самая строка, которую мы подписали.
+ * Вне дев-режима null, и клиент API берёт настоящую из SDK.
+ */
+export function devInitData(): string | null {
+  return devInitDataRaw;
+}
 
 /**
  * Работаем ли внутри настоящего клиента Telegram.
@@ -57,11 +65,48 @@ function safe(label: string, fn: () => unknown): void {
 }
 
 /**
+ * Подпись дев-initData тем же алгоритмом, что и Telegram.
+ *
+ * В V1 здесь стояло `hash: 'devmode'` — проверять было нечему. В V2 Worker
+ * валидирует HMAC на каждый запрос, и невалидная строка означала бы 401 на
+ * весь дев-режим. Поэтому подписываем локальным токеном (тем же, что в
+ * `workers/.dev.vars`): в браузере работает ровно тот же путь, что в Telegram.
+ *
+ * Настоящий токен бота сюда попасть не может: функция вызывается только из
+ * дев-мока, а он выключен в production-сборке.
+ */
+async function signDevInitData(params: [string, string][]): Promise<string> {
+  const token = process.env.NEXT_PUBLIC_DEV_BOT_TOKEN ?? 'local-dev-bot-token';
+  const encoder = new TextEncoder();
+
+  const sign = async (key: BufferSource, message: string) => {
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw',
+      key,
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign'],
+    );
+    return crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(message));
+  };
+
+  const dataCheckString = params
+    .map(([key, value]) => `${key}=${value}`)
+    .sort()
+    .join('\n');
+
+  const secret = await sign(encoder.encode('WebAppData'), token);
+  const hash = await sign(secret, dataCheckString);
+
+  return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
  * Вне Telegram (обычный браузер на `next dev`) окружения нет и SDK бросает
  * UnknownEnvError. Подменяем launch params, чтобы разработка не требовала
  * туннеля на каждый чих. В проде мок не подключается никогда.
  */
-function mockDevEnvironment(): void {
+async function mockDevEnvironment(): Promise<void> {
   if (process.env.NODE_ENV === 'production') return;
 
   const themeParamsMock = {
@@ -80,26 +125,39 @@ function mockDevEnvironment(): void {
     text_color: '#f5f5f5',
   } as const;
 
+  // `signature` обязателен: без него SDK не принимает tgWebAppData вовсе.
+  // На проверку HMAC он не влияет — Worker пробует обе раскладки.
+  const signedFields: [string, string][] = [
+    ['auth_date', String(Math.floor(Date.now() / 1000))],
+    ['query_id', 'dev-query-id'],
+    ['signature', 'dev-signature'],
+    [
+      'user',
+      JSON.stringify({
+        id: 1,
+        first_name: 'Dev',
+        last_name: 'User',
+        username: 'devuser',
+        language_code: 'ru',
+      }),
+    ],
+  ];
+
+  const raw = new URLSearchParams([
+    ...signedFields,
+    ['hash', await signDevInitData(signedFields)],
+  ]);
+  // Строку запоминаем ровно в том виде, в каком подписали: SDK разбирает
+  // initData в объект и собирает обратно сам, а любая пересборка JSON юзера
+  // ломает HMAC. В проде это значение остаётся null.
+  devInitDataRaw = raw.toString();
+
   mockTelegramEnv({
     launchParams: {
       tgWebAppThemeParams: themeParamsMock,
       tgWebAppVersion: '8.0',
       tgWebAppPlatform: 'tdesktop',
-      tgWebAppData: new URLSearchParams([
-        ['auth_date', String(Math.floor(Date.now() / 1000))],
-        ['hash', 'devmode'],
-        ['signature', 'devmode'],
-        [
-          'user',
-          JSON.stringify({
-            id: 1,
-            first_name: 'Dev',
-            last_name: 'User',
-            username: 'devuser',
-            language_code: 'ru',
-          }),
-        ],
-      ]),
+      tgWebAppData: raw,
     },
     // Вне Telegram отвечать на вызовы методов некому, поэтому отвечаем сами.
     // CloudStorage сознательно НЕ мокаем: в дев-режиме приложение уходит
@@ -142,14 +200,26 @@ export interface TelegramEnv {
   inTelegram: boolean;
 }
 
-export function initTelegram(): TelegramEnv {
-  if (initialized) return { inTelegram: inTelegramEnv };
-  initialized = true;
+/**
+ * Инициализация запускается один раз, но дождаться её могут несколько раз:
+ * в дев-режиме React вызывает эффекты дважды, и второй вызов не должен
+ * возвращать «готово» раньше, чем закончился первый. Иначе store уйдёт
+ * за данными с ещё не подписанным initData.
+ */
+export function initTelegram(): Promise<TelegramEnv> {
+  boot ??= startTelegram();
+  return boot;
+}
 
+let boot: Promise<TelegramEnv> | null = null;
+
+async function startTelegram(): Promise<TelegramEnv> {
   const inTelegram = hasTelegramTransport();
   inTelegramEnv = inTelegram;
 
-  if (!inTelegram) mockDevEnvironment();
+  // Подпись дев-initData асинхронная (crypto.subtle), поэтому вся инициализация
+  // стала асинхронной: мок обязан встать до init() SDK.
+  if (!inTelegram) await mockDevEnvironment();
 
   safe('init', () => initSdk());
   safe('restoreInitData', () => restoreInitData());

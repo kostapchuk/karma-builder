@@ -3,56 +3,74 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { initDataUser } from '@telegram-apps/sdk-react';
 
 import { DeedList } from '@/components/DeedList';
+import { LevelUpOverlay } from '@/components/LevelUpOverlay';
 import { useMainButton } from '@/components/useMainButton';
-import { levelForXp, levelProgress, levelTitle, minXpForLevel } from '@/lib/karma/scoring';
-import { currentStreakOn, toDateKey } from '@/lib/karma/streak';
 import { useAppStore } from '@/lib/store/useAppStore';
 import { plural } from '@/lib/ui/catalog';
 
+const RECENT_LIMIT = 5;
+
 export default function HomePage() {
   const router = useRouter();
-  const state = useAppStore((s) => s.state);
-  const recentDeeds = useAppStore((s) => s.recentDeeds);
-  const storageKind = useAppStore((s) => s.storageKind);
+  const profile = useAppStore((s) => s.profile);
+  const counts = useAppStore((s) => s.counts);
+  const deeds = useAppStore((s) => s.deeds);
+  const legacyImport = useAppStore((s) => s.legacyImport);
+  const celebration = useAppStore((s) => s.celebration);
+  const dismissCelebration = useAppStore((s) => s.dismissCelebration);
 
   const nativeButton = useMainButton({
     text: 'Добавить дело',
     onClick: () => router.push('/add'),
   });
 
-  // Уровень производный от кармы — считаем на месте, а не храним на диске.
-  const level = levelForXp(state.totalKarma);
-  const progress = levelProgress(state.totalKarma);
-  const toNext = minXpForLevel(level + 1) - state.totalKarma;
-  const streak = currentStreakOn(state.streak, toDateKey(new Date()));
-  const bump = useKarmaBump(state.totalKarma);
+  const bump = useKarmaBump(profile?.karmaTotal ?? 0);
+  if (!profile) return null;
+
+  const progress =
+    profile.currentLevelXp + profile.xpToNextLevel > 0
+      ? profile.currentLevelXp / (profile.currentLevelXp + profile.xpToNextLevel)
+      : 0;
 
   return (
     <main className="page">
-      {storageKind === 'local' && (
-        <div className="banner">
-          <span>⚠️</span>
+      {legacyImport.status === 'done' && legacyImport.imported > 0 && (
+        <div className="banner info">
+          <span>📦</span>
           <span>
-            Telegram CloudStorage недоступен — данные хранятся только на этом устройстве
-            и не синхронизируются.
+            Перенесли {legacyImport.imported}{' '}
+            {plural(legacyImport.imported, 'дело', 'дела', 'дел')} из прежней версии. Они попали
+            в самооценку — в общий рейтинг идёт только подтверждённая карма.
           </span>
         </div>
       )}
 
-      <Greeting />
+      {profile.firstName && (
+        <div className="hint" style={{ padding: '0 4px' }}>
+          Привет, {profile.firstName} 👋
+        </div>
+      )}
 
       <section className="card">
-        <div className="hint">Всего кармы</div>
-        <div className={`karma-total${bump ? ' bump' : ''}`}>{state.totalKarma}</div>
+        <div className="hint">Подтверждённая карма</div>
+        <div className={`karma-total${bump ? ' bump' : ''}`}>{profile.karmaTotal}</div>
+
+        {profile.karmaSelfTotal > 0 && (
+          <div className="hint" style={{ marginTop: 4 }}>
+            Самооценка из прежней версии: {profile.karmaSelfTotal}
+          </div>
+        )}
+
         <div className="row" style={{ marginTop: 16, marginBottom: 8 }}>
           <span className="level-title">
-            Ур. {level} · {levelTitle(level)}
+            Ур. {profile.level} · {profile.levelTitle}
           </span>
           <span className="spacer" />
-          <span className="hint">до {level + 1}: {toNext}</span>
+          <span className="hint">
+            до {profile.level + 1}: {profile.xpToNextLevel}
+          </span>
         </div>
         <div className="progress">
           <i style={{ width: `${Math.round(progress * 100)}%` }} />
@@ -61,18 +79,33 @@ export default function HomePage() {
 
       <div className="stats">
         <div className="stat">
-          <b>🔥 {streak}</b>
-          <span>{plural(streak, 'день', 'дня', 'дней')} подряд</span>
+          <b>🔥 {profile.streak}</b>
+          <span>{plural(profile.streak, 'день', 'дня', 'дней')} подряд</span>
         </div>
         <div className="stat">
-          <b>{state.deedCount}</b>
-          <span>{plural(state.deedCount, 'дело', 'дела', 'дел')}</span>
+          <b>{profile.deedCount}</b>
+          <span>{plural(profile.deedCount, 'дело', 'дела', 'дел')}</span>
         </div>
         <div className="stat">
-          <b>{state.badges.length}</b>
-          <span>{plural(state.badges.length, 'бейдж', 'бейджа', 'бейджей')}</span>
+          <b>{profile.badges.length}</b>
+          <span>{plural(profile.badges.length, 'бейдж', 'бейджа', 'бейджей')}</span>
         </div>
       </div>
+
+      {/* Главное новое состояние V2: дела, которые ждут чужой оценки. */}
+      <Link href="/review" className="card row" style={{ textDecoration: 'none' }}>
+        <span className="icon-badge">⏳</span>
+        <span className="body">
+          <b style={{ display: 'block' }}>На ревью</b>
+          <span className="hint">
+            {counts.pending === 0
+              ? 'Все дела проверены'
+              : `${counts.pending} ${plural(counts.pending, 'дело ждёт', 'дела ждут', 'дел ждут')} оценки`}
+          </span>
+        </span>
+        <span className="spacer" />
+        <span className="hint">›</span>
+      </Link>
 
       {!nativeButton && (
         <Link href="/add" className="btn">
@@ -90,31 +123,25 @@ export default function HomePage() {
             Вся история
           </Link>
         </div>
-        <DeedList deeds={recentDeeds} />
+        <DeedList deeds={deeds.slice(0, RECENT_LIMIT)} />
       </section>
 
+      <Link href="/leaderboard" className="btn secondary">
+        Лидерборд
+      </Link>
       <Link href="/profile" className="btn secondary">
         Профиль и бейджи
       </Link>
+
+      {celebration && (
+        <LevelUpOverlay
+          level={celebration.level}
+          badges={celebration.badges}
+          onDismiss={dismissCelebration}
+        />
+      )}
     </main>
   );
-}
-
-function Greeting() {
-  const [name, setName] = useState<string | null>(null);
-
-  // initData читаем только ради имени: валидировать нечем и незачем —
-  // сервера в V1 нет. HMAC появится в V2 вместе с бэкендом.
-  useEffect(() => {
-    try {
-      setName(initDataUser()?.first_name ?? null);
-    } catch {
-      setName(null);
-    }
-  }, []);
-
-  if (!name) return null;
-  return <div className="hint" style={{ padding: '0 4px' }}>Привет, {name} 👋</div>;
 }
 
 /** Короткая анимация числа кармы, когда оно выросло с прошлого рендера. */

@@ -2,20 +2,21 @@
 
 import { useMemo } from 'react';
 
-import type { Deed } from '@/lib/karma/types';
-import { dateKeyFromEpochSeconds, toDateKey } from '@/lib/karma/streak';
+import type { DeedView } from '@/lib/api/types';
+import { toDateKey } from '@/lib/karma/streak';
 import { plural } from '@/lib/ui/catalog';
 
 const WEEKS = 26;
 const DAYS = WEEKS * 7;
 
 /** Календарь активности как у GitHub-контрибуций — за последние полгода. */
-export function Heatmap({ deeds }: { deeds: Deed[] }) {
+export function Heatmap({ deeds }: { deeds: DeedView[] }) {
   const cells = useMemo(() => {
     const counts = new Map<string, number>();
     for (const deed of deeds) {
-      const key = dateKeyFromEpochSeconds(deed.createdAt);
-      counts.set(key, (counts.get(key) ?? 0) + 1);
+      // localDate посчитан на устройстве автора: сервер живёт в UTC и день
+      // на границе суток определил бы иначе.
+      counts.set(deed.localDate, (counts.get(deed.localDate) ?? 0) + 1);
     }
 
     // Сетка идёт колонками по неделям, поэтому начинаем с понедельника:

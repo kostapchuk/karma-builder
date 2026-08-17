@@ -6,3 +6,8 @@ next-env.d.ts
 .DS_Store
 .vercel
 .env*.local
+# Секреты Worker'а для локального запуска: BOT_TOKEN живёт здесь и в
+# `wrangler secret put`, но никогда в репозитории.
+.dev.vars
+.wrangler/
+reviewer/dist/

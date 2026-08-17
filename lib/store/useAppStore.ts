@@ -1,140 +1,253 @@
 /**
- * Zustand — источник для UI, CloudStorage — источник правды на диске.
- * Store гидратируется один раз при старте и после этого держит агрегаты
- * в памяти, чтобы Home не ждал сети на каждый переход между экранами.
+ * Zustand — источник для UI, D1 за Worker'ом — источник правды.
+ *
+ * Отличие от V1: карма больше не растёт в момент записи дела. Дело создаётся
+ * со статусом `pending` и ждёт двух рецензентов, поэтому «праздновать» на экране
+ * добавления нечего — уровень и бейджи приезжают позже, при обновлении профиля.
+ * Отсюда `celebration`: то, что случилось между запусками, показывается на Home.
  */
 
 'use client';
 
 import { create } from 'zustand';
-import { nanoid } from 'nanoid';
 
-import { computeKarmaPoints } from '../karma/scoring';
-import type { Badge, Deed, DeedCategory, EffortLevel } from '../karma/types';
-import { PersistedState, emptyState } from '../storage/codec';
-import { onStorageDegraded } from '../storage/driver';
-import type { StorageKind } from '../storage/driver';
-import {
-  RECENT_DEEDS_LIMIT,
-  appendDeed,
-  loadAllDeeds,
-  loadHead,
-  resetAll,
-  sortNewestFirst,
-} from '../storage/repository';
+import { ApiError, api } from '../api/client';
+import type { DeedView, LeaderboardEntry, Profile, ReviewLink } from '../api/types';
+import type { Badge, DeedCategory, EffortLevel } from '../karma/types';
+import { readLegacySnapshot } from '../storage/legacy';
+import { initDataStartParam } from '@telegram-apps/sdk-react';
 
 export type HydrationStatus = 'idle' | 'loading' | 'ready' | 'error';
 
-/** Результат добавления дела — то, что экрану нужно отпраздновать. */
+/** Что показать на Home после того, как дела подтвердили без нас. */
+export interface Celebration {
+  level: number | null;
+  badges: Badge[];
+}
+
 export interface AddDeedOutcome {
-  deed: Deed;
-  leveledUp: boolean;
-  newLevel: number;
+  deed: DeedView;
   newBadges: Badge[];
+}
+
+export interface LegacyImportState {
+  status: 'idle' | 'running' | 'done' | 'failed';
+  imported: number;
 }
 
 interface AppState {
   status: HydrationStatus;
   error: string | null;
-  storageKind: StorageKind;
 
-  state: PersistedState;
-  recentDeeds: Deed[];
+  profile: Profile | null;
+  inviteLink: string | null;
+  counts: { pending: number; approved: number; legacy: number };
+  deeds: DeedView[];
+  legacyImport: LegacyImportState;
+  celebration: Celebration | null;
 
-  /** Полная история грузится лениво, при первом открытии History. */
-  deeds: Deed[];
-  historyStatus: HydrationStatus;
+  friends: LeaderboardEntry[] | null;
+  global: LeaderboardEntry[] | null;
+  globalMeRank: number | null;
 
-  hydrate(): Promise<void>;
+  hydrate(force?: boolean): Promise<void>;
   addDeed(input: {
     description: string;
     category: DeedCategory;
     effortLevel: EffortLevel;
   }): Promise<AddDeedOutcome>;
-  loadHistory(force?: boolean): Promise<void>;
-  reset(): Promise<void>;
+  requestReviewLinks(deedId: string): Promise<ReviewLink[]>;
+  loadLeaderboards(): Promise<void>;
+  dismissCelebration(): void;
+}
+
+const SEEN_LEVEL_KEY = 'kb:seen-level';
+const SEEN_BADGES_KEY = 'kb:seen-badges';
+
+/**
+ * Что изменилось с прошлого визита. Уровень и бейджи теперь приходят от
+ * сервера в любой момент — «когда рецензенты дошли до дела», — поэтому отметку
+ * о показанном держим на устройстве, а не выводим из ответа.
+ */
+function pickCelebration(profile: Profile): Celebration | null {
+  if (typeof window === 'undefined') return null;
+
+  const codes = profile.badges.map((b) => b.code);
+  let seenLevel = 0;
+  let seenBadges: string[] = [];
+  try {
+    seenLevel = Number(window.localStorage.getItem(SEEN_LEVEL_KEY) ?? '0');
+    seenBadges = JSON.parse(window.localStorage.getItem(SEEN_BADGES_KEY) ?? '[]');
+  } catch {
+    seenLevel = 0;
+    seenBadges = [];
+  }
+
+  // Первый запуск: ничего не празднуем, просто запоминаем текущее состояние.
+  const first = seenLevel === 0 && seenBadges.length === 0;
+  const newBadges = profile.badges.filter((b) => !seenBadges.includes(b.code));
+  const leveledUp = !first && profile.level > seenLevel;
+
+  try {
+    window.localStorage.setItem(SEEN_LEVEL_KEY, String(profile.level));
+    window.localStorage.setItem(SEEN_BADGES_KEY, JSON.stringify(codes));
+  } catch {
+    // Приватный режим — просто не покажем оверлей во второй раз.
+  }
+
+  if (first || (!leveledUp && newBadges.length === 0)) return null;
+  return { level: leveledUp ? profile.level : null, badges: newBadges };
+}
+
+function message(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.code === 'network') return 'Нет связи с сервером';
+    if (error.isAuthProblem) return 'Telegram не подтвердил вход — переоткройте приложение';
+  }
+  return 'Не удалось загрузить данные';
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
   status: 'idle',
   error: null,
-  storageKind: 'local',
-  state: emptyState(),
-  recentDeeds: [],
+  profile: null,
+  inviteLink: null,
+  counts: { pending: 0, approved: 0, legacy: 0 },
   deeds: [],
-  historyStatus: 'idle',
+  legacyImport: { status: 'idle', imported: 0 },
+  celebration: null,
+  friends: null,
+  global: null,
+  globalMeRank: null,
 
-  async hydrate() {
-    if (get().status === 'loading' || get().status === 'ready') return;
+  async hydrate(force = false) {
+    const current = get().status;
+    if (!force && (current === 'loading' || current === 'ready')) return;
     set({ status: 'loading', error: null });
-    // CloudStorage может отвалиться и позже, на первой же записи —
-    // тогда баннер должен появиться без перезагрузки.
-    onStorageDegraded(() => set({ storageKind: 'local' }));
+
     try {
-      const head = await loadHead();
+      const [me, history] = await Promise.all([api.me(), api.deeds({ limit: 50 })]);
+
       set({
         status: 'ready',
-        state: head.state,
-        recentDeeds: head.recentDeeds,
-        storageKind: head.storageKind,
+        profile: me.profile,
+        inviteLink: me.inviteLink,
+        counts: me.counts,
+        deeds: history.deeds,
+        celebration: pickCelebration(me.profile),
       });
+
+      // Дальше — фоновые задачи. Они не должны мешать экрану: сорвались —
+      // приложение всё равно работает.
+      void adoptFriendFromDeepLink();
+      void importLegacyOnce(me.profile, set);
     } catch (error) {
       console.error('[store] hydrate failed', error);
-      set({ status: 'error', error: 'Не удалось загрузить данные' });
+      set({ status: 'error', error: message(error) });
     }
   },
 
-  async addDeed({ description, category, effortLevel }) {
-    const deed: Deed = {
-      id: nanoid(8),
-      description: description.trim(),
-      category,
-      effortLevel,
-      karmaPoints: computeKarmaPoints(category, effortLevel),
-      createdAt: Math.floor(Date.now() / 1000),
-    };
-
-    // Номер горячего чанка из памяти экономит один круг до CloudStorage.
-    const result = await appendDeed(deed, get().state.lastChunk);
+  async addDeed(input) {
+    const result = await api.createDeed(input);
 
     set((prev) => ({
-      state: result.state,
-      recentDeeds: [deed, ...prev.recentDeeds].slice(0, RECENT_DEEDS_LIMIT),
-      // Историю обновляем только если она уже загружена — иначе пусть
-      // подтянется лениво целиком при открытии History.
-      deeds: prev.historyStatus === 'ready' ? sortNewestFirst([deed, ...prev.deeds]) : prev.deeds,
+      profile: result.profile,
+      deeds: [result.deed, ...prev.deeds],
+      counts: { ...prev.counts, pending: prev.counts.pending + 1 },
     }));
 
-    return {
-      deed,
-      leveledUp: result.newLevel > result.previousLevel,
-      newLevel: result.newLevel,
-      newBadges: result.newBadges,
-    };
+    // Бейджи за количество дел выдаются сразу, поэтому отметку о показанном
+    // двигаем здесь же — иначе Home отпразднует их второй раз.
+    forgetBadges(result.profile);
+
+    return { deed: result.deed, newBadges: result.newBadges };
   },
 
-  async loadHistory(force = false) {
-    const { historyStatus, state } = get();
-    if (!force && (historyStatus === 'loading' || historyStatus === 'ready')) return;
-    set({ historyStatus: 'loading' });
-    try {
-      const deeds = await loadAllDeeds(state.lastChunk);
-      set({ deeds, historyStatus: 'ready' });
-    } catch (error) {
-      console.error('[store] loadHistory failed', error);
-      set({ historyStatus: 'error' });
-    }
+  async requestReviewLinks(deedId) {
+    const result = await api.sendReview(deedId);
+    set((prev) => ({
+      deeds: prev.deeds.map((deed) => (deed.id === deedId ? result.deed : deed)),
+    }));
+    return result.links;
   },
 
-  async reset() {
-    await resetAll();
+  async loadLeaderboards() {
+    const [friends, global] = await Promise.all([
+      api.friendsLeaderboard(),
+      api.globalLeaderboard(),
+    ]);
     set({
-      state: emptyState(),
-      recentDeeds: [],
-      deeds: [],
-      historyStatus: 'idle',
-      status: 'ready',
-      error: null,
+      friends: friends.entries,
+      global: global.entries,
+      globalMeRank: global.me?.rank ?? null,
     });
   },
+
+  dismissCelebration() {
+    set({ celebration: null });
+  },
 }));
+
+function forgetBadges(profile: Profile) {
+  try {
+    window.localStorage.setItem(
+      SEEN_BADGES_KEY,
+      JSON.stringify(profile.badges.map((b) => b.code)),
+    );
+  } catch {
+    /* приватный режим */
+  }
+}
+
+/** Переход по ссылке-приглашению: `?startapp=f<id>` в initData. */
+async function adoptFriendFromDeepLink(): Promise<void> {
+  let ref: string | undefined;
+  try {
+    ref = initDataStartParam();
+  } catch {
+    return;
+  }
+  if (!ref || !/^f\d+$/.test(ref)) return;
+
+  try {
+    await api.addFriend(ref);
+  } catch (error) {
+    // Себя в друзья, несуществующий id, повторный переход — не повод шуметь.
+    console.warn('[store] addFriend skipped', error);
+  }
+}
+
+/**
+ * Перенос истории V1. Запускается ровно один раз в жизни аккаунта: решает
+ * серверный флаг `legacy_imported_at`, а не что-либо на устройстве — иначе
+ * пользователь со вторым телефоном импортировал бы всё заново.
+ */
+async function importLegacyOnce(
+  profile: Profile,
+  set: (partial: Partial<AppState>) => void,
+): Promise<void> {
+  if (profile.legacyImported) return;
+
+  set({ legacyImport: { status: 'running', imported: 0 } });
+  try {
+    const snapshot = await readLegacySnapshot();
+    if (snapshot.deeds.length === 0) {
+      set({ legacyImport: { status: 'idle', imported: 0 } });
+      return;
+    }
+
+    const result = await api.importLegacy(snapshot.deeds);
+    // Перенесённые дела должны появиться в истории сразу, а не со следующего
+    // запуска: пользователь только что видел их в прежней версии.
+    const history = await api.deeds({ limit: 50 }).catch(() => null);
+
+    set({
+      legacyImport: { status: 'done', imported: result.imported },
+      profile: result.profile,
+      ...(history ? { deeds: history.deeds } : {}),
+    });
+  } catch (error) {
+    console.error('[store] legacy import failed', error);
+    set({ legacyImport: { status: 'failed', imported: 0 } });
+  }
+}

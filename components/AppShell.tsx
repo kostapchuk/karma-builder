@@ -17,11 +17,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const status = useAppStore((s) => s.status);
   const error = useAppStore((s) => s.error);
   const hydrate = useAppStore((s) => s.hydrate);
+  // Повтор после сбоя сети: перезагружать webview целиком не нужно.
+  const retry = hydrate;
 
   useEffect(() => {
-    initTelegram();
-    setBooted(true);
-    void hydrate();
+    // Порядок важен: store читает initData из SDK, значит SDK должен встать первым.
+    void initTelegram().then(() => {
+      setBooted(true);
+      return hydrate();
+    });
   }, [hydrate]);
 
   useBackButton();
@@ -44,7 +48,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <span className="emoji">😕</span>
           {error ?? 'Что-то пошло не так'}
           <p>
-            <button className="btn secondary" onClick={() => window.location.reload()}>
+            <button className="btn secondary" onClick={() => void retry(true)}>
               Попробовать снова
             </button>
           </p>

@@ -1,0 +1,417 @@
+/*
+ * Страница рецензента живёт вне Telegram, поэтому палитра здесь своя — тему
+ * клиента подставить неоткуда. Задача страницы одна: помочь постороннему
+ * человеку откалибровать число. Отсюда и решения:
+ *
+ *   - главный элемент — ШКАЛА: якоря и ручка оценки на одной оси, а не
+ *     слайдер отдельно и таблица примеров отдельно;
+ *   - цвет ручки идёт от шалфейного (малое дело) к янтарному (большое) —
+ *     цвет и есть обратная связь о весе оценки;
+ *   - цифры набраны моноширинным: это показание прибора, а не текст.
+ */
+
+:root {
+  --paper: #eceff1;
+  --card: #ffffff;
+  --ink: #16202b;
+  --ink-soft: #5c6b7a;
+  --edge: rgb(22 32 43 / 0.12);
+  --low: #6b8f7a;
+  --high: #e2861f;
+  --shadow: 0 1px 2px rgb(22 32 43 / 0.06), 0 8px 24px rgb(22 32 43 / 0.08);
+
+  --radius: 16px;
+  --track: 10px;
+  --handle: 30px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #0f1419;
+    --card: #171e26;
+    --ink: #e8eef4;
+    --ink-soft: #8b9bab;
+    --edge: rgb(232 238 244 / 0.14);
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.3);
+  }
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+:focus-visible {
+  outline: 2px solid var(--high);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+.page {
+  max-width: 460px;
+  margin: 0 auto;
+  padding: 28px 20px calc(32px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+/* ---------- Шапка ---------- */
+
+.eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0;
+}
+
+h1 {
+  margin: 6px 0 0;
+  font-size: 25px;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  font-weight: 650;
+  text-wrap: balance;
+}
+
+.lede {
+  margin: 10px 0 0;
+  color: var(--ink-soft);
+  font-size: 15px;
+}
+
+/* ---------- Карточка дела ---------- */
+
+.deed {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 18px;
+  box-shadow: var(--shadow);
+}
+
+.deed-category {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
+}
+
+.deed-text {
+  margin: 12px 0 0;
+  font-size: 19px;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+
+.deed-meta {
+  margin: 12px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--edge);
+  font-size: 13px;
+  color: var(--ink-soft);
+  display: flex;
+  gap: 8px;
+}
+
+/* ---------- Шкала: главный элемент страницы ---------- */
+
+.scale {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 22px 20px 18px;
+  box-shadow: var(--shadow);
+}
+
+.readout {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.readout b {
+  font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Cascadia Code', monospace;
+  font-size: 64px;
+  font-weight: 600;
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+  transition: color 220ms ease;
+}
+
+.readout span {
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.track-area {
+  position: relative;
+  padding: calc(var(--handle) / 2) 0 0;
+}
+
+.track {
+  position: relative;
+  height: var(--track);
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--low), transparent 78%),
+    color-mix(in oklab, var(--high), transparent 78%)
+  );
+}
+
+.track-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  transition: width 220ms ease, background-color 220ms ease;
+}
+
+.handle {
+  position: absolute;
+  top: 50%;
+  width: var(--handle);
+  height: var(--handle);
+  margin-left: calc(var(--handle) / -2);
+  border-radius: 50%;
+  border: 3px solid var(--card);
+  box-shadow: 0 2px 8px rgb(22 32 43 / 0.28);
+  transform: translateY(-50%);
+  transition: left 220ms ease, background-color 220ms ease;
+  pointer-events: none;
+}
+
+/* Настоящий range поверх рисунка: тач, клавиатура и скринридер — бесплатно. */
+.track-input {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: -14px;
+  width: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: grab;
+  appearance: none;
+  background: none;
+}
+
+.track-input:active {
+  cursor: grabbing;
+}
+
+.track-input:focus-visible + .handle {
+  outline: 2px solid var(--high);
+  outline-offset: 3px;
+}
+
+/* Якоря стоят на той же оси, что и ручка, — в этом весь смысл калибровки. */
+.anchors {
+  position: relative;
+  height: 66px;
+  margin-top: 10px;
+}
+
+.anchor {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  width: 96px;
+  padding: 0;
+  text-align: center;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.anchor::before {
+  content: '';
+  display: block;
+  width: 1px;
+  height: 9px;
+  margin: 0 auto 5px;
+  background: var(--edge);
+}
+
+.anchor b {
+  display: block;
+  font-family: ui-monospace, 'SF Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.anchor span {
+  display: block;
+  font-size: 11px;
+  line-height: 1.25;
+  margin-top: 2px;
+  text-wrap: balance;
+}
+
+.anchor:hover span,
+.anchor[data-active='true'] span {
+  color: var(--ink);
+}
+
+/* Подсказка системы: заметная ровно настолько, чтобы на неё можно было не смотреть. */
+.suggestion {
+  margin: 4px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--edge);
+  font-size: 13px;
+  color: var(--ink-soft);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.suggestion button {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---------- Комментарий и отправка ---------- */
+
+.comment {
+  width: 100%;
+  min-height: 76px;
+  resize: none;
+  padding: 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--edge);
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px; /* меньше 16px — iOS зумит поле при фокусе */
+  outline: none;
+  box-shadow: var(--shadow);
+}
+
+.comment:focus {
+  border-color: var(--high);
+}
+
+.submit {
+  width: 100%;
+  padding: 16px;
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition: transform 120ms ease, opacity 120ms ease;
+}
+
+.submit:active {
+  transform: scale(0.985);
+  transition-duration: 0s;
+}
+
+.submit:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.form-note {
+  margin: -8px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.error-note {
+  margin: 0;
+  font-size: 14px;
+  color: #c0392b;
+  text-align: center;
+}
+
+/* ---------- Финальные экраны ---------- */
+
+.final {
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  gap: 14px;
+}
+
+.final .mark {
+  font-family: ui-monospace, 'SF Mono', monospace;
+  font-size: 68px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.final h1 {
+  font-size: 23px;
+}
+
+.final p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 15px;
+  text-wrap: balance;
+}
+
+.skeleton {
+  height: 132px;
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.footer {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

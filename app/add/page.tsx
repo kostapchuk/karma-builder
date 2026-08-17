@@ -3,8 +3,9 @@
 import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 
-import { LevelUpOverlay } from '@/components/LevelUpOverlay';
+import { ShareReviewLinks } from '@/components/ShareReviewLinks';
 import { useMainButton } from '@/components/useMainButton';
+import type { DeedView } from '@/lib/api/types';
 import { badgeDefinition } from '@/lib/karma/badges';
 import {
   DEED_CATEGORIES,
@@ -12,7 +13,7 @@ import {
   EFFORT_LEVELS,
   computeKarmaPoints,
 } from '@/lib/karma/scoring';
-import type { Badge, DeedCategory, EffortLevel } from '@/lib/karma/types';
+import type { DeedCategory, EffortLevel } from '@/lib/karma/types';
 import { useAppStore } from '@/lib/store/useAppStore';
 import { hapticImpact, hapticSelection, hapticSuccess } from '@/lib/telegram/haptics';
 import { CATEGORY_META, EFFORT_META } from '@/lib/ui/catalog';
@@ -26,7 +27,8 @@ export default function AddDeedPage() {
   const [effortLevel, setEffortLevel] = useState<EffortLevel>(1);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [levelUp, setLevelUp] = useState<{ level: number; badges: Badge[] } | null>(null);
+  // Дело записано — экран переключается на второй шаг: разослать ссылки.
+  const [created, setCreated] = useState<DeedView | null>(null);
 
   const points = category ? computeKarmaPoints(category, effortLevel) : 0;
 
@@ -35,38 +37,55 @@ export default function AddDeedPage() {
     setSaving(true);
     try {
       const outcome = await addDeed({ description, category, effortLevel });
-
-      setToast(`+${outcome.deed.karmaPoints} кармы`);
       hapticImpact('medium');
-
-      if (outcome.leveledUp) {
-        // Level-up — самый заметный момент, поэтому и оверлей, и success-haptic.
-        hapticSuccess();
-        setLevelUp({ level: outcome.newLevel, badges: outcome.newBadges });
-        return;
-      }
 
       if (outcome.newBadges.length > 0) {
         hapticSuccess();
         const def = badgeDefinition(outcome.newBadges[0].code);
         if (def) setToast(`${def.icon} ${def.title}`);
+        setTimeout(() => setToast(null), 2400);
       }
 
-      setTimeout(() => router.replace('/'), 900);
+      setCreated(outcome.deed);
     } catch (error) {
       console.error('[add] failed', error);
+      setToast('Не удалось записать дело');
+      setTimeout(() => setToast(null), 2400);
+    } finally {
       setSaving(false);
-      setToast('Не удалось сохранить дело');
-      setTimeout(() => setToast(null), 2200);
     }
-  }, [addDeed, category, description, effortLevel, router, saving]);
+  }, [addDeed, category, description, effortLevel, saving]);
 
   const nativeButton = useMainButton({
-    text: category ? `Записать дело · +${points}` : 'Выберите категорию',
-    onClick: submit,
-    enabled: Boolean(category),
+    text: created ? 'Готово' : category ? `Записать дело · ~${points}` : 'Выберите категорию',
+    onClick: created ? () => router.replace('/') : submit,
+    enabled: Boolean(category) || Boolean(created),
     loading: saving,
   });
+
+  if (created) {
+    return (
+      <main className="page">
+        <h1 className="karma-total" style={{ fontSize: 24 }}>
+          Дело записано
+        </h1>
+        <p className="hint" style={{ padding: '0 4px', marginTop: -8 }}>
+          Карма придёт, когда дело оценят два человека. Отправьте им ссылки — открывать
+          Telegram и регистрироваться не нужно, ссылка работает в любом браузере.
+        </p>
+
+        <ShareReviewLinks deed={created} />
+
+        {!nativeButton && (
+          <button className="btn secondary" onClick={() => router.replace('/')}>
+            Готово
+          </button>
+        )}
+
+        {toast && <div className="toast">{toast}</div>}
+      </main>
+    );
+  }
 
   return (
     <main className="page">
@@ -84,7 +103,7 @@ export default function AddDeedPage() {
           onChange={(e) => setDescription(e.target.value)}
         />
         <div className="hint" style={{ textAlign: 'right', marginTop: 4 }}>
-          {description.length}/{DESCRIPTION_MAX_LENGTH} · на баллы не влияет
+          {description.length}/{DESCRIPTION_MAX_LENGTH} · это увидят рецензенты
         </div>
       </div>
 
@@ -133,35 +152,25 @@ export default function AddDeedPage() {
         </div>
       </div>
 
+      {/* «~» вместо «+»: это предложение системы рецензентам, а не начисление. */}
       <div className="preview">
-        <b>+{points}</b>
-        <span className="hint">кармы за это дело</span>
+        <b>~{points}</b>
+        <span className="hint">предложим рецензентам</span>
       </div>
 
       {!nativeButton && (
         <button className="btn" disabled={!category || saving} onClick={submit}>
-          {saving ? 'Сохраняем…' : 'Записать дело'}
+          {saving ? 'Записываем…' : 'Записать дело'}
         </button>
       )}
 
       {toast && <div className="toast">{toast}</div>}
 
-      {/* Запись идёт через клиент Telegram и занимает заметное время.
-          Оверлей и показывает прогресс, и перехватывает тапы, чтобы
-          нетерпеливое нажатие не ушло в интерфейс под ним. */}
-      {saving && !levelUp && (
+      {saving && (
         <div className="saving" role="status" aria-live="polite">
           <div className="spinner" />
           <span>Записываем дело…</span>
         </div>
-      )}
-
-      {levelUp && (
-        <LevelUpOverlay
-          level={levelUp.level}
-          badges={levelUp.badges}
-          onDismiss={() => router.replace('/')}
-        />
       )}
     </main>
   );

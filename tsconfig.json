@@ -37,8 +37,12 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
+  // workers/ и reviewer/ живут в других рантаймах (Workers, Vite) и проверяются
+  // своими tsconfig'ами: у них другие lib и global-типы.
   "exclude": [
     "node_modules",
-    "out"
+    "out",
+    "workers",
+    "reviewer"
   ]
 }

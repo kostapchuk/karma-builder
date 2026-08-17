@@ -236,6 +236,118 @@ a {
   flex: none;
 }
 
+/* Балл до подтверждения — прогноз, а не карма: гасим его, чтобы не путать. */
+.points.muted {
+  color: var(--hint);
+  font-weight: 500;
+}
+
+/* ---------- Статус дела ---------- */
+
+.pill {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.5;
+  background: color-mix(in srgb, var(--hint) 18%, transparent);
+  color: var(--hint);
+}
+
+.pill.wait {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+}
+
+.pill.done {
+  background: color-mix(in srgb, #3ea55e 22%, transparent);
+  color: #4fc27a;
+}
+
+.slot + .slot {
+  padding-top: 14px;
+  border-top: 1px solid var(--separator);
+}
+
+/* ---------- Лидерборд ---------- */
+
+.rank-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  text-align: left;
+  width: 100%;
+}
+
+.rank-row + .rank-row {
+  border-top: 1px solid var(--separator);
+}
+
+.rank-row.me {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.rank-row .rank {
+  width: 24px;
+  flex: none;
+  text-align: right;
+  font-size: 13px;
+  color: var(--hint);
+  font-variant-numeric: tabular-nums;
+}
+
+.rank-row .body {
+  min-width: 0;
+  flex: 1;
+}
+
+.rank-row .body b {
+  display: block;
+  font-size: 15px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rank-row .body span {
+  font-size: 12px;
+  color: var(--hint);
+}
+
+.rank-row .points {
+  font-weight: 600;
+  color: var(--accent);
+  flex: none;
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 50%;
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Крупная иконка-плашка в строке-ссылке (например, «На ревью»). */
+.icon-badge {
+  font-size: 20px;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
 /* ---------- Add Deed ---------- */
 
 .textarea {
@@ -557,6 +669,11 @@ a {
   background: color-mix(in srgb, var(--danger) 14%, transparent);
   color: var(--text);
   font-size: 13px;
+}
+
+/* Тот же баннер, но про хорошее — например, про перенос истории из V1. */
+.banner.info {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
 .filters {
