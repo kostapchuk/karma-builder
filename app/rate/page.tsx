@@ -112,7 +112,7 @@ export default function RatePage() {
             <p>Дело подтверждено на {done.finalScore} кармы.</p>
           )}
         </div>
-        <Link href="/" className="btn">
+        <Link href="/add" className="btn">
           Записать своё дело
         </Link>
       </main>

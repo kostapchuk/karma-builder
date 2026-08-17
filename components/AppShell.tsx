@@ -67,6 +67,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 }
 
 /**
+ * Токены, по которым уже увели на экран оценки в этом запуске приложения.
+ *
+ * `start_param` не расходуется сам: Telegram отдаёт его всё время, пока живёт
+ * webview. Без отметки любой уход на главную снова кидал бы на `/rate`, а токен
+ * там уже потрачен — получался экран «по этой ссылке уже оценили», из которого
+ * не выйти. Список модульный, а не в sessionStorage: повторный запуск по той же
+ * ссылке — новая загрузка страницы, и туда попасть снова можно.
+ */
+const consumedReviewTokens = new Set<string>();
+
+/**
  * Ссылка на оценку ведёт в само приложение (`?startapp=r<token>`), а не на
  * отдельную страницу: только так сервер узнаёт, кто ставит балл, и не даёт
  * автору подтвердить своё же дело. Telegram открывает Mini App на корне,
@@ -74,13 +85,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
  */
 function useReviewDeepLink(booted: boolean) {
   const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
     if (!booted) return;
-    // Уже на экране оценки — второй раз никуда не ведём: иначе возврат назад
-    // отбрасывал бы обратно сюда же.
-    if (pathname.startsWith('/rate')) return;
 
     let param: string | undefined;
     try {
@@ -89,8 +96,13 @@ function useReviewDeepLink(booted: boolean) {
       return;
     }
     const token = reviewTokenFromStartParam(param);
-    if (token) router.replace(`/rate/?t=${token}`);
-  }, [booted, pathname, router]);
+    if (!token || consumedReviewTokens.has(token)) return;
+
+    // Отмечаем до перехода: эффект переживёт смену маршрута и иначе увёл бы
+    // обратно, стоит пользователю уйти с экрана оценки.
+    consumedReviewTokens.add(token);
+    router.replace(`/rate/?t=${token}`);
+  }, [booted, router]);
 }
 
 /** Нативная кнопка «назад» Telegram вместо собственной в интерфейсе. */

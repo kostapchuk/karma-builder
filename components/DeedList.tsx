@@ -2,6 +2,7 @@
 
 import type { DeedView } from '@/lib/api/types';
 import { sqlToEpoch } from '@/lib/api/types';
+import { REVIEWER_SLOTS } from '@/lib/karma/review';
 import { CATEGORY_META, EFFORT_META, formatDeedTime } from '@/lib/ui/catalog';
 
 /**
@@ -9,12 +10,21 @@ import { CATEGORY_META, EFFORT_META, formatDeedTime } from '@/lib/ui/catalog';
  * записи, и список обязан показывать, чем дело закончилось — иначе непонятно,
  * почему карма не выросла.
  */
+/**
+ * Сколько оценок ждёт дело — из `REVIEWER_SLOTS`, а не словом в подписи:
+ * иначе при смене числа рецензентов список обещает не то, что делает сервер.
+ */
+const NEEDED = REVIEWER_SLOTS.length;
+
+const WAITING_LABEL =
+  NEEDED === 1 ? 'Ждёт оценки' : NEEDED === 2 ? 'Ждёт двух оценок' : `Ждёт оценок: ${NEEDED}`;
+
 export const STATUS_META: Record<DeedView['status'], { label: string; tone: 'wait' | 'done' | 'muted' }> = {
-  pending: { label: 'Ждёт двух оценок', tone: 'wait' },
-  partially_reviewed: { label: 'Оценил один из двух', tone: 'wait' },
+  pending: { label: WAITING_LABEL, tone: 'wait' },
+  partially_reviewed: { label: `Оценил один из ${NEEDED}`, tone: 'wait' },
   approved: { label: 'Подтверждено', tone: 'done' },
   rejected: { label: 'Отклонено', tone: 'muted' },
-  expired: { label: 'Ссылки истекли', tone: 'muted' },
+  expired: { label: NEEDED === 1 ? 'Ссылка истекла' : 'Ссылки истекли', tone: 'muted' },
   legacy_unverified: { label: 'Из прежней версии', tone: 'muted' },
 };
 

@@ -5,14 +5,15 @@ import { useState } from 'react';
 
 import { DeedList } from '@/components/DeedList';
 import { ShareReviewLinks } from '@/components/ShareReviewLinks';
+import { REVIEWER_SLOTS } from '@/lib/karma/review';
 import { useAppStore } from '@/lib/store/useAppStore';
 import { plural } from '@/lib/ui/catalog';
 
 /**
  * «На ревью» — экран, которого в V1 не было и быть не могло.
  *
- * Здесь живут дела между «записал» и «подтвердили»: видно, кто из двух
- * рецензентов ответил, и отсюда же перевыпускается истёкшая ссылка.
+ * Здесь живут дела между «записал» и «подтвердили»: видно, кто из рецензентов
+ * ответил, и отсюда же перевыпускается истёкшая ссылка.
  */
 export default function ReviewPage() {
   const deeds = useAppStore((s) => s.deeds);
@@ -43,7 +44,9 @@ export default function ReviewPage() {
       {waiting.length > 0 && (
         <p className="hint" style={{ padding: '0 4px', marginTop: -8 }}>
           {waiting.length} {plural(waiting.length, 'дело ждёт', 'дела ждут', 'дел ждут')} оценки.
-          Карма начислится, когда ответят оба рецензента: итог — среднее их оценок.
+          {REVIEWER_SLOTS.length === 1
+            ? ' Карма начислится, когда рецензент поставит балл.'
+            : ' Карма начислится, когда ответят все рецензенты: итог — среднее их оценок.'}
         </p>
       )}
 
