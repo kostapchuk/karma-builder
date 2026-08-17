@@ -176,28 +176,69 @@ INSERT INTO reviews (...) SELECT deed_id, reviewer_slot, ?, ?, ?
 
 ---
 
-## Что нужно сделать руками для прода
+## Что развёрнуто
 
-Код готов, инфраструктура — нет. Ни одного секрета и ни одного `database_id`
-в репозитории нет и быть не должно.
+Прод поднят 18 августа 2026 в аккаунте Cloudflare с одним Worker-субдоменом
+`xfaseex1.workers.dev`.
 
-1. **База:** `npx wrangler d1 create karma-builder` → полученный `database_id`
-   вписать в `workers/wrangler.jsonc` (сейчас там нули-заглушка) →
-   `npm run db:migrate`.
-2. **Секрет:** `npx wrangler secret put BOT_TOKEN --config workers/wrangler.jsonc`
-   — настоящий токен из BotFather. Без него валидация initData не сойдётся.
-3. **Worker:** `npm run deploy:api`. Запомнить выданный домен.
-4. **Страница рецензента:** `cd reviewer && npm run build` → задеплоить `dist/`
-   на Cloudflare Pages. В переменных сборки Pages задать
-   `VITE_API_BASE_URL` = домен Worker'а. Файл `public/_redirects` уже отдаёт
-   SPA по адресам вида `/r/<token>`.
-5. **Обратно в Worker:** `REVIEW_BASE_URL` = домен Pages, `BOT_USERNAME` =
-   username бота без `@` (из него собирается ссылка-приглашение в друзья).
-   Оба — в `vars` внутри `workers/wrangler.jsonc`, затем повторный деплой.
-6. **Mini App:** на Vercel задать `NEXT_PUBLIC_API_BASE_URL` = домен Worker'а
-   и передеплоить. `NEXT_PUBLIC_DEV_BOT_TOKEN` в проде **не задавать**:
-   дев-мок в production-сборке всё равно выключен.
-7. **Проверить в живом Telegram** пункты из «Не проверено» выше.
+| Что | Адрес |
+|---|---|
+| API + страница рецензента | `karma-builder-api.xfaseex1.workers.dev` |
+| Mini App | `karma-builder-app.xfaseex1.workers.dev` |
+| D1 `karma-builder` | регион EEUR, миграция `0001_init` применена |
 
-Порядок именно такой: Worker должен знать домен страницы рецензента, а та —
-домен Worker'а, поэтому один из них деплоится дважды.
+`BOT_TOKEN` лежит в `wrangler secret`. `database_id` попал в
+`workers/wrangler.jsonc`: он не секрет — без авторизации в аккаунт бесполезен,
+а без него не собрать ни деплой, ни миграцию.
+
+Деплой — две команды, `npm run deploy:api` и `npm run deploy:app`. Обе
+пересобирают статику сами, но адрес API у Mini App вшивается на сборке, так
+что её нужно именно пересобирать при смене домена API, а не передеплоивать.
+
+---
+
+## Почему не Pages
+
+План селил страницу рецензента на Cloudflare Pages, а Mini App на Vercel.
+Страница на Pages уехала и не открылась: зона `pages.dev` у провайдера,
+с которого ведётся разработка (Beltelecom, BY), режется на двух уровнях —
+DNS отдаёт `82.209.230.73` вместо адреса Cloudflare, а с подставленным
+настоящим адресом соединение рвётся на TLS-хендшейке, то есть по SNI.
+`workers.dev`, `vercel.app` и остальные домены Cloudflare при этом доступны:
+блокируется именно зона `pages.dev`.
+
+Для ссылки на ревью это фатально: её открывает посторонний человек в обычном
+браузере, и если он у того же провайдера — ссылка мертва, а это весь смысл V2.
+Поэтому статику раздают Worker'ы:
+
+- **страницу рецензента отдаёт сам Worker API** (`assets` в
+  `workers/wrangler.jsonc`). `/r/{token}` попадает в SPA через
+  `not_found_handling: single-page-application`, а `/api/*` перехватывается
+  раньше ассетов через `run_worker_first` — иначе SPA-фолбэк отдавал бы HTML
+  на несуществующий маршрут API вместо JSON-404. Побочно исчезли двойной
+  деплой ради обмена доменами и CORS между ними: origin стал общим;
+- **Mini App раздаёт отдельный Worker без кода** (`wrangler.app.jsonc`) —
+  только `assets`, промах отдаётся страницей `404.html` из экспорта, а не
+  главным экраном.
+
+`reviewer/public/_redirects` при переезде удалён: правило `/* /index.html 200`
+Workers считает бесконечной петлёй и отклоняет деплой, а SPA-фолбэк теперь
+делает `not_found_handling`.
+
+Это не защита от блокировок вообще — `workers.dev` можно закрыть той же
+логикой. Устойчивый ответ — свой домен; пока его нет, приложение живёт на
+проверенно доступной зоне.
+
+---
+
+## Что осталось руками
+
+1. **`BOT_USERNAME`** в `vars` внутри `workers/wrangler.jsonc` — сейчас там
+   заглушка `karma_builder_bot`. Из неё собирается ссылка-приглашение
+   `?startapp=f<id>`, и с неверным username кнопка «добавить друга» ведёт
+   в никуда. После правки — `npm run deploy:api`.
+2. **BotFather:** `/newapp` (или `/setmenubutton`) → URL Mini App =
+   `https://karma-builder-app.xfaseex1.workers.dev`.
+3. **Проверить в живом Telegram** пункты из «Не проверено» выше — это
+   единственный способ: подписать initData можно только настоящим токеном
+   бота, поэтому прод-API локальными тестами не покрыть.

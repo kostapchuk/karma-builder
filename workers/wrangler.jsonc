@@ -10,14 +10,29 @@
     {
       "binding": "DB",
       "database_name": "karma-builder",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "129ccb0d-2b57-4759-8bab-77080e5d4aa7",
       "migrations_dir": "migrations"
     }
   ],
 
+  // Страницу рецензента отдаёт сам Worker, а не отдельный проект Pages:
+  // зона pages.dev режется частью провайдеров по DNS и SNI, а ссылку на ревью
+  // открывает посторонний человек в обычном браузере — недоступный домен
+  // убивает весь сценарий. Собирается из `reviewer/` (`npm run build:reviewer`),
+  // в git каталог не попадает.
+  "assets": {
+    "directory": "../reviewer/dist",
+    // Адреса вида /r/{token} — маршрут внутри SPA, файла под ними нет.
+    "not_found_handling": "single-page-application",
+    // ...но /api/* должен доставаться коду, иначе SPA-фолбэк проглотит 404
+    // несуществующего маршрута и отдаст на него HTML.
+    "run_worker_first": ["/api/*"]
+  },
+
   "vars": {
-    // База, от которой строятся ссылки на ревью: <REVIEW_BASE_URL>/r/{token}
-    "REVIEW_BASE_URL": "http://localhost:5173",
+    // База, от которой строятся ссылки на ревью: <REVIEW_BASE_URL>/r/{token}.
+    // Тот же домен, что у API: страница теперь живёт здесь же.
+    "REVIEW_BASE_URL": "https://karma-builder-api.xfaseex1.workers.dev",
     // Origin'ы, которым разрешён CORS. "*" — любой: все приватные маршруты
     // авторизуются заголовком initData, а не cookie, поэтому это не дыра.
     "ALLOWED_ORIGINS": "*",

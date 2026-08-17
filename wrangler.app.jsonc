@@ -1,0 +1,24 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  // Mini App — статический экспорт Next, кода на сервере у неё нет: этот Worker
+  // только раздаёт out/ и существует лишь ради домена. На Pages статика не
+  // поехала — зона pages.dev режется частью провайдеров, а приложение
+  // открывается в webview Telegram у тех же людей.
+  //
+  // Собирается и деплоится вместе: `npm run deploy:app`. Адрес API вшивается
+  // в бандл на сборке (NEXT_PUBLIC_API_BASE_URL), поэтому при смене домена
+  // API приложение нужно пересобрать, а не просто передеплоить.
+  "name": "karma-builder-app",
+  "compatibility_date": "2025-11-01",
+
+  "assets": {
+    "directory": "./out",
+    // trailingSlash: true в next.config.mjs — каждый маршрут это каталог с
+    // index.html, промаха мимо файла быть не должно. Несуществующий адрес
+    // отдаём страницей 404 из экспорта, а не SPA-фолбэком: иначе опечатка в
+    // ссылке молча показала бы главный экран.
+    "not_found_handling": "404-page"
+  },
+
+  "observability": { "enabled": true }
+}
