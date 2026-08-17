@@ -1,4 +1,4 @@
-# Karma Contributor — V1
+# Karma Builder — V1
 
 Telegram Mini App для трекинга добрых дел: записал дело → получил баллы кармы → вырос в уровне.
 Бэкенда нет, данные живут в Telegram CloudStorage. Полное описание замысла — в [docs/v1-mini-app.md](./docs/v1-mini-app.md).

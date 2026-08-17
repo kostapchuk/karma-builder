@@ -4,7 +4,7 @@ import { AppShell } from '@/components/AppShell';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Karma Contributor',
+  title: 'Karma Builder',
   description: 'Трекер добрых дел с кармой, уровнями и стриками',
 };
 

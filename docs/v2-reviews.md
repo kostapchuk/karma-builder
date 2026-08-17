@@ -1,4 +1,4 @@
-# Karma Contributor — V2: peer-ревью, Workers + D1
+# Karma Builder — V2: peer-ревью, Workers + D1
 
 ## Что добавляется к V1
 

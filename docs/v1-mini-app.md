@@ -1,4 +1,4 @@
-# Karma Contributor — V1: Telegram Mini App без бэкенда
+# Karma Builder — V1: Telegram Mini App без бэкенда
 
 ## Идея продукта
 
