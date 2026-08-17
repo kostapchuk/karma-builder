@@ -94,7 +94,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       createdAt: Math.floor(Date.now() / 1000),
     };
 
-    const result = await appendDeed(deed);
+    // Номер горячего чанка из памяти экономит один круг до CloudStorage.
+    const result = await appendDeed(deed, get().state.lastChunk);
 
     set((prev) => ({
       state: result.state,

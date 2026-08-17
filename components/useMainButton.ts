@@ -9,6 +9,8 @@ interface MainButtonOptions {
   text: string;
   onClick: () => void;
   enabled?: boolean;
+  /** Показать встроенный спиннер Telegram и заблокировать повторные нажатия. */
+  loading?: boolean;
 }
 
 /**
@@ -17,7 +19,12 @@ interface MainButtonOptions {
  * Возвращает `false`, если кнопка недоступна (старый клиент или обычный
  * браузер) — тогда экран рисует собственную кнопку в потоке страницы.
  */
-export function useMainButton({ text, onClick, enabled = true }: MainButtonOptions): boolean {
+export function useMainButton({
+  text,
+  onClick,
+  enabled = true,
+  loading = false,
+}: MainButtonOptions): boolean {
   const [available, setAvailable] = useState(false);
   // Колбэк держим в ref: подписку на onClick не хочется пересоздавать
   // на каждый ререндер формы.
@@ -46,11 +53,18 @@ export function useMainButton({ text, onClick, enabled = true }: MainButtonOptio
   useEffect(() => {
     if (!available) return;
     try {
-      mainButton.setParams({ text, isVisible: true, isEnabled: enabled });
+      mainButton.setParams({
+        text,
+        isVisible: true,
+        // Во время записи кнопка выключена: иначе повторный тап
+        // создал бы второе дело, пока идёт первый запрос.
+        isEnabled: enabled && !loading,
+        isLoaderVisible: loading,
+      });
     } catch {
       /* клиент не поддерживает — работает фолбэк в разметке */
     }
-  }, [available, text, enabled]);
+  }, [available, text, enabled, loading]);
 
   return available;
 }

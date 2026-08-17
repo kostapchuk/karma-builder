@@ -64,7 +64,8 @@ export default function AddDeedPage() {
   const nativeButton = useMainButton({
     text: category ? `Записать дело · +${points}` : 'Выберите категорию',
     onClick: submit,
-    enabled: Boolean(category) && !saving,
+    enabled: Boolean(category),
+    loading: saving,
   });
 
   return (
@@ -144,6 +145,16 @@ export default function AddDeedPage() {
       )}
 
       {toast && <div className="toast">{toast}</div>}
+
+      {/* Запись идёт через клиент Telegram и занимает заметное время.
+          Оверлей и показывает прогресс, и перехватывает тапы, чтобы
+          нетерпеливое нажатие не ушло в интерфейс под ним. */}
+      {saving && !levelUp && (
+        <div className="saving" role="status" aria-live="polite">
+          <div className="spinner" />
+          <span>Записываем дело…</span>
+        </div>
+      )}
 
       {levelUp && (
         <LevelUpOverlay

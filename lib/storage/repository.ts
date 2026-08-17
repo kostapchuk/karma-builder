@@ -107,14 +107,26 @@ export async function loadAllDeeds(lastChunk: number): Promise<Deed[]> {
  * Транзакций в CloudStorage нет, семантика last-write-wins. Поэтому state
  * перечитываем непосредственно перед записью: иначе дело, добавленное со
  * второго устройства, затёрлось бы устаревшим счётчиком чанка.
+ *
+ * `chunkHint` — номер горячего чанка из памяти store. Он позволяет запросить
+ * `state` и сам чанк одним вызовом вместо двух последовательных: каждое
+ * обращение к CloudStorage идёт через клиент Telegram и стоит заметной паузы.
+ * Подсказка может устареть (дело добавили со второго устройства) — тогда
+ * дочитываем правильный чанк, то есть в худшем случае столько же вызовов,
+ * сколько было раньше.
  */
-export async function appendDeed(deed: Deed): Promise<AppendResult> {
+export async function appendDeed(deed: Deed, chunkHint = 0): Promise<AppendResult> {
   const driver = createDriver();
-  const state = await readState();
+
+  const hintKey = chunkKey(chunkHint);
+  const head = await driver.getItems([KEY_STATE, hintKey]);
+  const state = decodeState(head[KEY_STATE]);
 
   const hotKey = chunkKey(state.lastChunk);
-  const hotRaw = await driver.getItems([hotKey]);
-  const hotDeeds = decodeChunk(hotRaw[hotKey]);
+  const hotDeeds =
+    state.lastChunk === chunkHint
+      ? decodeChunk(head[hintKey])
+      : decodeChunk((await driver.getItems([hotKey]))[hotKey]);
 
   const candidate = [...hotDeeds, deed];
   const candidateEncoded = encodeChunk(candidate);

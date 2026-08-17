@@ -31,6 +31,20 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/*
+ * touch-action: manipulation выключает ожидание двойного тапа для зума.
+ * Без него webview придерживает событие на ~300 мс, прежде чем отдать click, —
+ * именно это и ощущается как залипание при нажатии.
+ */
+button,
+a,
+textarea,
+input,
+[role='button'] {
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+}
+
 html,
 body {
   margin: 0;
@@ -265,8 +279,14 @@ a {
   background: color-mix(in srgb, var(--accent) 16%, var(--section-bg));
 }
 
+/*
+ * Нажатие отрисовывается мгновенно, а отпускание — плавно. Если оставить
+ * transition и на :active, отклик появляется только через 140 мс и палец
+ * успевает почувствовать задержку.
+ */
 .chip:active {
   transform: scale(0.97);
+  transition-duration: 0s;
 }
 
 .chip .chip-icon {
@@ -298,6 +318,7 @@ a {
 
 .effort:active {
   transform: scale(0.97);
+  transition-duration: 0s;
 }
 
 .effort b {
@@ -338,8 +359,22 @@ a {
   text-align: center;
 }
 
+.btn:active {
+  transform: scale(0.985);
+  transition-duration: 0s;
+}
+
 .btn:disabled {
   opacity: 0.5;
+}
+
+.btn:disabled:active {
+  transform: none;
+}
+
+.filter:active {
+  transform: scale(0.96);
+  transition-duration: 0s;
 }
 
 .btn.secondary {
@@ -372,6 +407,44 @@ a {
 @keyframes toast-in {
   from { opacity: 0; transform: translate(-50%, 16px); }
   to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* ---------- Индикатор записи ---------- */
+
+.saving {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 500;
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  /* Появляемся не мгновенно: на быстром ответе облака вспышка оверлея
+     раздражала бы сильнее самой паузы. */
+  animation: saving-in 420ms ease-out both;
+}
+
+@keyframes saving-in {
+  0%, 45% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid color-mix(in srgb, var(--hint) 30%, transparent);
+  border-top-color: var(--accent);
+  animation: spin 700ms linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .levelup {
@@ -603,5 +676,11 @@ a {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /* Спиннер — не украшение, а единственный признак, что запись идёт,
+     поэтому он крутится даже при отключённой анимации. */
+  .spinner {
+    animation-duration: 700ms !important;
   }
 }
