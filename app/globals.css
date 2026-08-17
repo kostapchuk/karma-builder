@@ -1,0 +1,607 @@
+/*
+ * Палитра целиком приходит из Telegram (--tg-theme-*), своей не навязываем —
+ * приложение должно совпадать с темой клиента. Значения по умолчанию нужны
+ * только для случая, когда themeParams не смонтировались.
+ */
+
+:root {
+  --bg: var(--tg-theme-bg-color, #17212b);
+  --secondary-bg: var(--tg-theme-secondary-bg-color, #232e3c);
+  --section-bg: var(--tg-theme-section-bg-color, var(--secondary-bg));
+  --text: var(--tg-theme-text-color, #f5f5f5);
+  --hint: var(--tg-theme-hint-color, #708499);
+  --link: var(--tg-theme-link-color, #6ab3f3);
+  --accent: var(--tg-theme-button-color, #5288c1);
+  --accent-text: var(--tg-theme-button-text-color, #ffffff);
+  --danger: var(--tg-theme-destructive-text-color, #ec3942);
+  --separator: color-mix(in srgb, var(--hint) 25%, transparent);
+
+  --radius: 14px;
+  --gap: 12px;
+
+  /* Safe areas: без них контент уезжает под системные панели и клавиатуру. */
+  --safe-top: var(--tg-viewport-safe-area-inset-top, 0px);
+  --safe-bottom: var(--tg-viewport-safe-area-inset-bottom, 0px);
+  --content-top: var(--tg-viewport-content-safe-area-inset-top, 0px);
+  --content-bottom: var(--tg-viewport-content-safe-area-inset-bottom, 0px);
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
+    sans-serif;
+  font-size: 16px;
+  line-height: 1.4;
+  overscroll-behavior-y: none;
+}
+
+body {
+  /* Высоту берём у viewport Telegram: 100vh в webview врёт. */
+  min-height: var(--tg-viewport-stable-height, 100vh);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+a {
+  color: var(--link);
+  text-decoration: none;
+}
+
+.page {
+  padding: calc(16px + var(--safe-top) + var(--content-top)) 16px
+    calc(24px + var(--safe-bottom) + var(--content-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.card {
+  background: var(--section-bg);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.section-title {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--hint);
+  margin: 0 0 8px 4px;
+}
+
+.hint {
+  color: var(--hint);
+  font-size: 14px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+/* ---------- Home: карма и прогресс ---------- */
+
+.karma-total {
+  font-size: 46px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.karma-total.bump {
+  animation: bump 520ms cubic-bezier(0.2, 0.9, 0.3, 1.4);
+}
+
+@keyframes bump {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.16); }
+  100% { transform: scale(1); }
+}
+
+.level-title {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.progress {
+  height: 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--hint) 25%, transparent);
+  overflow: hidden;
+}
+
+.progress > i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 600ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--gap);
+}
+
+.stat {
+  background: var(--section-bg);
+  border-radius: var(--radius);
+  padding: 12px;
+  text-align: center;
+}
+
+.stat b {
+  display: block;
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.stat span {
+  font-size: 12px;
+  color: var(--hint);
+}
+
+/* ---------- Список дел ---------- */
+
+.deed-list {
+  display: flex;
+  flex-direction: column;
+  background: var(--section-bg);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.deed {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  text-align: left;
+}
+
+.deed + .deed {
+  border-top: 1px solid var(--separator);
+}
+
+.deed .icon {
+  font-size: 22px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  flex: none;
+}
+
+.deed .body {
+  min-width: 0;
+  flex: 1;
+}
+
+.deed .body b {
+  display: block;
+  font-size: 15px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.deed .body span {
+  font-size: 13px;
+  color: var(--hint);
+}
+
+.deed .points {
+  font-weight: 600;
+  color: var(--accent);
+  flex: none;
+}
+
+/* ---------- Add Deed ---------- */
+
+.textarea {
+  width: 100%;
+  min-height: 84px;
+  resize: none;
+  border-radius: var(--radius);
+  background: var(--section-bg);
+  color: var(--text);
+  padding: 14px;
+  border: 1px solid transparent;
+  outline: none;
+  font-size: 16px; /* меньше 16px — iOS зумит поле при фокусе */
+}
+
+.textarea:focus {
+  border-color: var(--accent);
+}
+
+.chip-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--gap);
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--section-bg);
+  border: 1.5px solid transparent;
+  font-size: 14px;
+  text-align: left;
+  transition: border-color 140ms ease, transform 140ms ease;
+}
+
+.chip[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, var(--section-bg));
+}
+
+.chip:active {
+  transform: scale(0.97);
+}
+
+.chip .chip-icon {
+  font-size: 20px;
+}
+
+.effort-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--gap);
+}
+
+.effort {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 6px;
+  border-radius: var(--radius);
+  background: var(--section-bg);
+  border: 1.5px solid transparent;
+  transition: border-color 140ms ease, transform 140ms ease;
+}
+
+.effort[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, var(--section-bg));
+}
+
+.effort:active {
+  transform: scale(0.97);
+}
+
+.effort b {
+  font-size: 15px;
+}
+
+.effort span {
+  font-size: 11px;
+  color: var(--hint);
+}
+
+.preview {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.preview b {
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* ---------- Кнопки ---------- */
+
+.btn {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+  text-align: center;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+}
+
+.btn.secondary {
+  background: var(--section-bg);
+  color: var(--text);
+}
+
+.btn.danger {
+  background: transparent;
+  color: var(--danger);
+}
+
+/* ---------- Тосты и level-up ---------- */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + var(--safe-bottom));
+  transform: translateX(-50%);
+  padding: 12px 20px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+  z-index: 50;
+  animation: toast-in 260ms ease-out;
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.28);
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, 16px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.levelup {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(6px);
+  animation: fade-in 200ms ease-out;
+}
+
+.levelup .inner {
+  text-align: center;
+  animation: pop 460ms cubic-bezier(0.2, 0.9, 0.3, 1.4);
+}
+
+.levelup .ring {
+  font-size: 64px;
+  margin-bottom: 12px;
+}
+
+.levelup h2 {
+  margin: 0 0 4px;
+  font-size: 26px;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pop {
+  0% { transform: scale(0.7); opacity: 0; }
+  60% { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+/* ---------- Бейджи ---------- */
+
+.badge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: var(--gap);
+}
+
+.badge {
+  background: var(--section-bg);
+  border-radius: var(--radius);
+  padding: 12px 8px;
+  text-align: center;
+}
+
+.badge.locked {
+  opacity: 0.35;
+  filter: grayscale(1);
+}
+
+.badge .emoji {
+  font-size: 26px;
+}
+
+.badge b {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.badge span {
+  display: block;
+  font-size: 10px;
+  color: var(--hint);
+  line-height: 1.25;
+  margin-top: 2px;
+}
+
+/* ---------- Heatmap ---------- */
+
+.heatmap {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, 11px);
+  gap: 3px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.heatmap i {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--hint) 20%, transparent);
+}
+
+.heatmap i[data-level='1'] { background: color-mix(in srgb, var(--accent) 35%, transparent); }
+.heatmap i[data-level='2'] { background: color-mix(in srgb, var(--accent) 60%, transparent); }
+.heatmap i[data-level='3'] { background: color-mix(in srgb, var(--accent) 82%, transparent); }
+.heatmap i[data-level='4'] { background: var(--accent); }
+
+/* ---------- Прочее ---------- */
+
+.banner {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.filters {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+
+.filters::-webkit-scrollbar {
+  display: none;
+}
+
+.filter {
+  flex: none;
+  padding: 7px 13px;
+  border-radius: 999px;
+  background: var(--section-bg);
+  font-size: 13px;
+  white-space: nowrap;
+  border: 1.5px solid transparent;
+}
+
+.filter[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.empty {
+  text-align: center;
+  color: var(--hint);
+  padding: 32px 16px;
+}
+
+.empty .emoji {
+  font-size: 40px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.level-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  font-size: 14px;
+}
+
+.level-row + .level-row {
+  border-top: 1px solid var(--separator);
+}
+
+.level-row .num {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--hint) 20%, transparent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.level-row.current .num {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.level-row.locked {
+  color: var(--hint);
+}
+
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  padding: 5px 0;
+}
+
+.bar-row .label {
+  width: 132px;
+  flex: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bar-row .bar {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--hint) 20%, transparent);
+  overflow: hidden;
+}
+
+.bar-row .bar > i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+}
+
+.bar-row .count {
+  width: 30px;
+  text-align: right;
+  color: var(--hint);
+  font-size: 13px;
+  flex: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
