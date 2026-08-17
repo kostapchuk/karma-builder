@@ -255,3 +255,16 @@ async function startTelegram(): Promise<TelegramEnv> {
 
   return { inTelegram };
 }
+
+/**
+ * Токен ревью из deep-link `?startapp=r<token>`.
+ *
+ * Префикс отличает ссылку на оценку от приглашения в друзья (`f<id>`), а сам
+ * токен состоит из символов, которые Telegram допускает в start_param, — иначе
+ * ссылка не дожила бы до приложения.
+ */
+export function reviewTokenFromStartParam(param: string | undefined): string | null {
+  if (!param) return null;
+  const match = /^r([A-Za-z0-9_-]{16,64})$/.exec(param);
+  return match ? match[1] : null;
+}

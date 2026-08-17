@@ -1,5 +1,6 @@
 /** CRUD дел и генерация ссылок на ревью. Всё под initData-авторизацией. */
 
+import { REVIEWER_SLOTS } from '../../../lib/karma/review';
 import { DESCRIPTION_MAX_LENGTH, computeKarmaPoints } from '../../../lib/karma/scoring';
 import type { Env } from '../env';
 import { reviewTtlHours } from '../env';
@@ -170,7 +171,7 @@ export async function sendReview(request: Request, env: Env, user: UserRow, id: 
   const fresh: TokenRow[] = [];
   const statements: D1PreparedStatement[] = [];
 
-  for (const slot of [1, 2] as const) {
+  for (const slot of REVIEWER_SLOTS) {
     if (reviews.some((r: ReviewRow) => r.reviewer_slot === slot)) continue;
 
     const existing = tokens.find((t) => t.reviewer_slot === slot);

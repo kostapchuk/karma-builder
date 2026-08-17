@@ -8,7 +8,10 @@ import { hapticImpact } from '@/lib/telegram/haptics';
 import { shareLink } from '@/lib/telegram/share';
 
 /**
- * Две ссылки на ревью — то, ради чего существует V2.
+ * Ссылки на ревью — то, ради чего существует V2.
+ *
+ * Сколько их — решает сервер (`REVIEWER_SLOTS`), поэтому подписи считаются от
+ * длины пришедшего списка, а не зашиты во множественном числе.
  *
  * Ссылки не создаются вместе с делом: живой токен переиспользуется, мёртвый
  * заменяется. Поэтому компонент дёргает `send-review` только когда слоту
@@ -24,6 +27,7 @@ export function ShareReviewLinks({ deed: initial }: { deed: DeedView }) {
   const [note, setNote] = useState<string | null>(null);
 
   const needsLinks = deed.slots.some((slot) => slot.state === 'none' || slot.state === 'expired');
+  const many = deed.slots.length > 1;
 
   const ensureLinks = useCallback(async () => {
     setBusy(true);
@@ -63,12 +67,12 @@ export function ShareReviewLinks({ deed: initial }: { deed: DeedView }) {
 
   return (
     <section>
-      <h2 className="section-title">Рецензенты</h2>
+      <h2 className="section-title">{many ? 'Рецензенты' : 'Рецензент'}</h2>
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {deed.slots.map((slot) => (
           <div className="slot" key={slot.slot}>
             <div className="row">
-              <b>Рецензент {slot.slot}</b>
+              <b>{many ? `Рецензент ${slot.slot}` : 'Рецензент'}</b>
               <span className="spacer" />
               <span className={`pill ${slot.state === 'reviewed' ? 'done' : slot.state === 'waiting' ? 'wait' : 'muted'}`}>
                 {SLOT_LABEL[slot.state]}
@@ -100,7 +104,13 @@ export function ShareReviewLinks({ deed: initial }: { deed: DeedView }) {
 
         {needsLinks && (
           <button className="btn" disabled={busy} onClick={() => void ensureLinks()}>
-            {busy ? 'Готовим ссылки…' : 'Создать ссылки заново'}
+            {busy
+              ? many
+                ? 'Готовим ссылки…'
+                : 'Готовим ссылку…'
+              : many
+                ? 'Создать ссылки заново'
+                : 'Создать ссылку заново'}
           </button>
         )}
 

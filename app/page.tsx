@@ -8,6 +8,8 @@ import { DeedList } from '@/components/DeedList';
 import { LevelUpOverlay } from '@/components/LevelUpOverlay';
 import { useMainButton } from '@/components/useMainButton';
 import { useAppStore } from '@/lib/store/useAppStore';
+import { hapticImpact } from '@/lib/telegram/haptics';
+import { shareInvite } from '@/lib/telegram/share';
 import { plural } from '@/lib/ui/catalog';
 
 const RECENT_LIMIT = 5;
@@ -20,6 +22,7 @@ export default function HomePage() {
   const legacyImport = useAppStore((s) => s.legacyImport);
   const celebration = useAppStore((s) => s.celebration);
   const dismissCelebration = useAppStore((s) => s.dismissCelebration);
+  const inviteLink = useAppStore((s) => s.inviteLink);
 
   const nativeButton = useMainButton({
     text: 'Добавить дело',
@@ -132,6 +135,18 @@ export default function HomePage() {
       <Link href="/profile" className="btn secondary">
         Профиль и бейджи
       </Link>
+      {inviteLink && (
+        <button
+          type="button"
+          className="btn secondary"
+          onClick={() => {
+            hapticImpact('light');
+            void shareInvite(inviteLink);
+          }}
+        >
+          Пригласить друга
+        </button>
+      )}
 
       {celebration && (
         <LevelUpOverlay

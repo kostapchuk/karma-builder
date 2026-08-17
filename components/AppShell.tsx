@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { backButton } from '@telegram-apps/sdk-react';
+import { backButton, initDataStartParam } from '@telegram-apps/sdk-react';
 
-import { initTelegram, isInTelegram } from '@/lib/telegram/init';
+import { initTelegram, isInTelegram, reviewTokenFromStartParam } from '@/lib/telegram/init';
 import { useAppStore } from '@/lib/store/useAppStore';
 
 /**
@@ -29,6 +29,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [hydrate]);
 
   useBackButton();
+  useReviewDeepLink(booted);
 
   if (!booted || status === 'idle' || status === 'loading') {
     return (
@@ -63,6 +64,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {children}
     </>
   );
+}
+
+/**
+ * Ссылка на оценку ведёт в само приложение (`?startapp=r<token>`), а не на
+ * отдельную страницу: только так сервер узнаёт, кто ставит балл, и не даёт
+ * автору подтвердить своё же дело. Telegram открывает Mini App на корне,
+ * поэтому распознать ссылку и увести на экран оценки приходится здесь.
+ */
+function useReviewDeepLink(booted: boolean) {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (!booted) return;
+    // Уже на экране оценки — второй раз никуда не ведём: иначе возврат назад
+    // отбрасывал бы обратно сюда же.
+    if (pathname.startsWith('/rate')) return;
+
+    let param: string | undefined;
+    try {
+      param = initDataStartParam();
+    } catch {
+      return;
+    }
+    const token = reviewTokenFromStartParam(param);
+    if (token) router.replace(`/rate/?t=${token}`);
+  }, [booted, pathname, router]);
 }
 
 /** Нативная кнопка «назад» Telegram вместо собственной в интерфейсе. */

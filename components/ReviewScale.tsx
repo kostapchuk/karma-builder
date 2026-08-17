@@ -1,13 +1,19 @@
+'use client';
+
 /**
- * Шкала оценки — главный элемент страницы.
+ * Шкала оценки — главный элемент экрана рецензента.
  *
  * Якоря и ручка стоят на ОДНОЙ оси: рецензент видит не «примеры где-то рядом»,
  * а точки на той же линейке, по которой двигает свою оценку. Цвет ручки идёт
  * от шалфейного к янтарному — вес оценки читается раньше, чем цифра.
+ *
+ * Жила в отдельной SPA, пока ревью шло без логина; переехала сюда вместе с
+ * маршрутом, когда рецензента понадобилось опознавать.
  */
 
-import { useEffect, useState } from 'react';
-import type { ScoreAnchor } from '../../lib/karma/review';
+import { useEffect, useRef, useState } from 'react';
+
+import type { ScoreAnchor } from '@/lib/karma/review';
 
 const LOW = [107, 143, 122] as const; // #6b8f7a
 const HIGH = [226, 134, 31] as const; // #e2861f
@@ -26,14 +32,49 @@ interface Props {
   onChange(value: number): void;
 }
 
-export function Scale({ value, max, anchors, baseScore, onChange }: Props) {
+/** Длительность переезда ручки. Держать в согласии с `.track-area[data-glide]`. */
+const GLIDE_MS = 220;
+
+export function ReviewScale({ value, max, anchors, baseScore, onChange }: Props) {
   // Ручка приезжает от нуля к подсказке системы один раз при открытии: это
   // объясняет устройство шкалы быстрее любой подписи.
   const [mounted, setMounted] = useState(false);
+
+  // Плавность нужна там, где оценка меняется скачком — на въезде и на тычке
+  // в якорь, — и вредна при перетаскивании: там тот же переход читается как
+  // лаг, ручка все 220 мс отстаёт от пальца. Поэтому он не постоянный, а
+  // включается на время конкретного скачка.
+  const [glide, setGlide] = useState(true);
+  const glideTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  const glideOnce = () => {
+    clearTimeout(glideTimer.current);
+    setGlide(true);
+    glideTimer.current = setTimeout(() => setGlide(false), GLIDE_MS + 40);
+  };
+
+  // Перетаскивание обрывает текущий переезд немедленно, не дожидаясь таймера:
+  // иначе первое же движение пальца досталось бы анимации.
+  const stopGlide = () => {
+    clearTimeout(glideTimer.current);
+    setGlide(false);
+  };
+
   useEffect(() => {
     const id = requestAnimationFrame(() => setMounted(true));
-    return () => cancelAnimationFrame(id);
+    glideOnce();
+    return () => {
+      cancelAnimationFrame(id);
+      clearTimeout(glideTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /** Скачок к готовому значению: якорь или «вернуть». */
+  const jumpTo = (next: number) => {
+    glideOnce();
+    onChange(next);
+  };
 
   const shown = mounted ? value : 0;
   const ratio = shown / max;
@@ -42,7 +83,7 @@ export function Scale({ value, max, anchors, baseScore, onChange }: Props) {
 
   return (
     <section className="scale" aria-labelledby="scale-heading">
-      <h2 id="scale-heading" className="eyebrow">
+      <h2 id="scale-heading" className="section-title">
         Ваша оценка
       </h2>
 
@@ -51,7 +92,7 @@ export function Scale({ value, max, anchors, baseScore, onChange }: Props) {
         <span>из {max}</span>
       </div>
 
-      <div className="track-area">
+      <div className="track-area" data-glide={glide || undefined}>
         <div className="track">
           <div className="track-fill" style={{ width: percent, background: color }} />
           <input
@@ -61,6 +102,7 @@ export function Scale({ value, max, anchors, baseScore, onChange }: Props) {
             max={max}
             step={1}
             value={value}
+            onPointerDown={stopGlide}
             onChange={(event) => onChange(Number(event.target.value))}
             aria-label={`Оценка дела от 0 до ${max}`}
             aria-valuetext={`${value} из ${max}`}
@@ -76,7 +118,7 @@ export function Scale({ value, max, anchors, baseScore, onChange }: Props) {
               className="anchor"
               style={{ left: `${(anchor.score / max) * 100}%` }}
               data-active={value === anchor.score}
-              onClick={() => onChange(anchor.score)}
+              onClick={() => jumpTo(anchor.score)}
               title={anchor.example}
               aria-label={`Поставить ${anchor.score}: ${anchor.example}`}
             >
@@ -90,7 +132,7 @@ export function Scale({ value, max, anchors, baseScore, onChange }: Props) {
       <p className="suggestion">
         <span>Система предлагает {baseScore}</span>
         {value !== baseScore && (
-          <button type="button" onClick={() => onChange(baseScore)}>
+          <button type="button" onClick={() => jumpTo(baseScore)}>
             вернуть
           </button>
         )}

@@ -30,12 +30,33 @@ export interface UserRow {
  * Первый запрос от юзера заводит строку, последующие обновляют профиль:
  * имя и аватар в Telegram меняются, а лидерборд должен показывать текущие.
  */
-export async function upsertUser(db: D1Database, user: TelegramUser): Promise<UserRow> {
+/**
+ * Заводит юзера или обновляет его профиль.
+ *
+ * `limit > 0` закрывает набор: новых не пускаем, уже заведённые продолжают
+ * ходить как ни в чём не бывало. Условие «мест ещё хватает» живёт внутри
+ * `INSERT ... SELECT`, а не в отдельной проверке до него: иначе два первых
+ * запуска, пришедшие одновременно, оба увидели бы свободное место и оба
+ * записались бы за потолок.
+ *
+ * Своих условие пропускает отдельной веткой `EXISTS`, и это не украшение:
+ * при полной таблице `WHERE` не отдаёт ни одной строки, вставлять становится
+ * нечего — а значит, и `ON CONFLICT DO UPDATE` не срабатывает. Без этой ветки
+ * закрытый набор выгонял бы вообще всех, включая уже заведённых.
+ */
+export async function upsertUser(
+  db: D1Database,
+  user: TelegramUser,
+  limit = 0,
+): Promise<UserRow | null> {
   const now = sqlNow();
   const row = await db
     .prepare(
       `INSERT INTO users (telegram_id, username, first_name, photo_url, category_counts, last_active_at)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+       SELECT ?1, ?2, ?3, ?4, ?5, ?6
+       WHERE ?7 = 0
+          OR EXISTS (SELECT 1 FROM users WHERE telegram_id = ?1)
+          OR (SELECT COUNT(*) FROM users) < ?7
        ON CONFLICT(telegram_id) DO UPDATE SET
          username = excluded.username,
          first_name = excluded.first_name,
@@ -50,11 +71,13 @@ export async function upsertUser(db: D1Database, user: TelegramUser): Promise<Us
       user.photoUrl,
       JSON.stringify(DEED_CATEGORIES.map(() => 0)),
       now,
+      limit,
     )
     .first<UserRow>();
 
-  if (!row) throw new Error('upsertUser returned no row');
-  return row;
+  // Пусто = мест не осталось, а этого telegram_id среди своих нет: строка не
+  // вставилась, и обновлять было нечего.
+  return row ?? null;
 }
 
 export function getUserById(db: D1Database, id: number): Promise<UserRow | null> {

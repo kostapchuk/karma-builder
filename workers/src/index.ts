@@ -7,9 +7,10 @@
  */
 
 import { validateInitData } from './auth/telegramAuth';
+import { REVIEW_REF_PREFIX } from './data/deeds';
 import { upsertUser, type UserRow } from './data/users';
-import type { Env } from './env';
-import { corsHeaders, errorResponse, json, notFound, unauthorized } from './http';
+import { maxUsers, type Env } from './env';
+import { HttpError, corsHeaders, errorResponse, json, notFound, unauthorized } from './http';
 import { createDeed, getDeed, listDeeds, sendReview } from './routes/deeds';
 import { addFriend } from './routes/friends';
 import { importLegacy } from './routes/importLegacy';
@@ -23,7 +24,11 @@ async function authenticate(request: Request, env: Env): Promise<UserRow> {
   const raw = request.headers.get(INIT_DATA_HEADER);
   if (!raw) throw unauthorized('init_data_missing');
   const initData = await validateInitData(raw, env.BOT_TOKEN);
-  return upsertUser(env.DB, initData.user);
+  const user = await upsertUser(env.DB, initData.user, maxUsers(env));
+  // Подпись верна, человек настоящий — просто мест больше нет. Это не 401:
+  // повторная авторизация ничего не изменит, менять надо MAX_USERS.
+  if (!user) throw new HttpError(403, 'signup_closed');
+  return user;
 }
 
 /** Для публичных маршрутов, которым свой юзер полезен, но не обязателен. */
@@ -43,10 +48,25 @@ async function route(request: Request, env: Env): Promise<Response> {
 
   if (pathname === '/api/health') return json({ ok: true });
 
-  // --- публичное: страница рецензента ---------------------------------------
+  // Прежний адрес страницы рецензента. Сама страница переехала в Mini App, но
+  // ссылки этого вида уже разосланы, и кто-то вставит их в обычный браузер —
+  // отправляем в Telegram вместо мёртвого 404.
+  if (segments[0] === 'r' && segments[1] && segments.length === 2) {
+    const target = env.BOT_USERNAME
+      ? `https://t.me/${env.BOT_USERNAME}?startapp=${REVIEW_REF_PREFIX}${segments[1]}`
+      : 'https://t.me';
+    return Response.redirect(target, 302);
+  }
+
+  // --- ревью: только из Mini App --------------------------------------------
+  // Раньше маршрут был публичным: страница открывалась в любом браузере без
+  // логина, и сервер не знал, кто ставит балл. Значит, автор мог подтвердить
+  // собственное дело сам. Теперь рецензент — такой же авторизованный юзер.
   if (segments[0] === 'api' && segments[1] === 'review' && segments[2]) {
-    if (method === 'GET') return getReview(env, segments[2]);
-    if (method === 'POST') return submitReview(request, env, segments[2]);
+    if (method === 'GET') return getReview(env, await authenticate(request, env), segments[2]);
+    if (method === 'POST') {
+      return submitReview(request, env, await authenticate(request, env), segments[2]);
+    }
   }
 
   if (pathname === '/api/leaderboard/global' && method === 'GET') {

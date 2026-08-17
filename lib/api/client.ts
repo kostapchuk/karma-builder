@@ -20,7 +20,9 @@ import type {
   ImportLegacyResponse,
   LeaderboardResponse,
   MeResponse,
+  ReviewPageResponse,
   SendReviewResponse,
+  SubmitReviewResponse,
 } from './types';
 import type { DeedCategory, EffortLevel } from '../karma/types';
 
@@ -109,6 +111,13 @@ export const api = {
 
   sendReview: (deedId: string) =>
     request<SendReviewResponse>('POST', `/api/deeds/${deedId}/send-review`),
+
+  // Ревью тоже требует initData: рецензент опознан, иначе автор подтверждал бы
+  // собственные дела сам.
+  reviewPage: (token: string) => request<ReviewPageResponse>('GET', `/api/review/${token}`),
+
+  submitReview: (token: string, input: { score: number; comment?: string }) =>
+    request<SubmitReviewResponse>('POST', `/api/review/${token}`, input),
 
   friendsLeaderboard: () => request<LeaderboardResponse>('GET', '/api/leaderboard/friends'),
 

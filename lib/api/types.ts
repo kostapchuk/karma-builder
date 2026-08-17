@@ -3,6 +3,7 @@
  * генератор ради дюжины маршрутов — лишняя машинерия.
  */
 
+import type { ReviewerSlot } from '../karma/review';
 import type { Badge, DeedCategory, EffortLevel } from '../karma/types';
 
 export type DeedStatus =
@@ -16,7 +17,7 @@ export type DeedStatus =
 export type SlotState = 'none' | 'waiting' | 'expired' | 'reviewed';
 
 export interface SlotView {
-  slot: 1 | 2;
+  slot: ReviewerSlot;
   state: SlotState;
   url: string | null;
   expiresAt: string | null;
@@ -81,7 +82,7 @@ export interface CreateDeedResponse {
 }
 
 export interface ReviewLink {
-  slot: 1 | 2;
+  slot: ReviewerSlot;
   url: string;
   expiresAt: string;
 }
@@ -142,4 +143,25 @@ export function sqlToEpoch(value: string): number {
 /** Балл, который стоит показать: подтверждённый, иначе предварительный. */
 export function displayScore(deed: DeedView): number {
   return deed.finalScore ?? deed.baseScore;
+}
+
+/** Дело чужими глазами: то, что видит рецензент, придя по ссылке. */
+export interface ReviewPageResponse {
+  deed: {
+    description: string;
+    category: DeedCategory;
+    effortLevel: EffortLevel;
+    baseScore: number;
+    createdAt: string;
+  };
+  author: { firstName: string | null; photoUrl: string | null };
+  anchors: { example: string; short: string; score: number }[];
+  maxScore: number;
+  expiresAt: string;
+}
+
+export interface SubmitReviewResponse {
+  status: 'recorded' | 'approved';
+  reviewsSubmitted: number;
+  finalScore: number | null;
 }

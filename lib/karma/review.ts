@@ -27,8 +27,20 @@ export const MAX_REVIEW_SCORE = 50;
 
 export const REVIEW_COMMENT_MAX_LENGTH = 280;
 
-/** Сколько людей оценивают одно дело; итог — среднее их оценок. */
-export const REVIEWER_SLOTS = [1, 2] as const;
+/**
+ * Сколько людей оценивают одно дело; итог — среднее их оценок.
+ *
+ * Единственный регулятор: от длины этого списка зависят и число выдаваемых
+ * ссылок, и порог, после которого дело уходит в approved. Возврат к двум
+ * рецензентам — правка одной строки, схема БД (`CHECK(reviewer_slot IN (1,2))`)
+ * второй слот по-прежнему допускает.
+ *
+ * Сейчас один: на старте у пользователей нет двоих готовых оценить, и дело
+ * зависало бы в partially_reviewed. Усреднение двух независимых оценок было
+ * защитой от накрутки — с одним рецензентом её нет, и это осознанный размен
+ * на время раскатки.
+ */
+export const REVIEWER_SLOTS = [1] as const;
 export type ReviewerSlot = (typeof REVIEWER_SLOTS)[number];
 
 export function isValidScore(value: unknown): value is number {

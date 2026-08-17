@@ -801,3 +801,188 @@ a {
     animation-duration: 700ms !important;
   }
 }
+
+/* --- Шкала оценки на экране рецензента ------------------------------------
+ *
+ * Переехала из отдельной SPA вместе с маршрутом ревью. Цвета взяты из темы
+ * Telegram, чтобы шкала не выбивалась из остальных экранов; шалфейный и
+ * янтарный оставлены как есть — по ним читается вес оценки.
+ */
+
+.scale {
+  --track: 10px;
+  --handle: 30px;
+  --low: #6b8f7a;
+  --high: #e2861f;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.readout {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.readout b {
+  font-size: 40px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  transition: color 220ms ease;
+}
+
+.readout span {
+  color: var(--hint);
+  font-size: 14px;
+}
+
+.track-area {
+  position: relative;
+  padding: calc(var(--handle) / 2) 0 0;
+}
+
+.track {
+  position: relative;
+  height: var(--track);
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--low), transparent 78%),
+    color-mix(in oklab, var(--high), transparent 78%)
+  );
+}
+
+.track-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  /* Цвет тянется всегда, положение — нет: см. [data-glide] ниже. */
+  transition: background-color 220ms ease;
+}
+
+.handle {
+  position: absolute;
+  top: 50%;
+  width: var(--handle);
+  height: var(--handle);
+  margin-left: calc(var(--handle) / -2);
+  border-radius: 50%;
+  border: 3px solid var(--bg);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.35);
+  transform: translateY(-50%);
+  transition: background-color 220ms ease;
+  pointer-events: none;
+}
+
+/*
+ * Положение ручки анимируется только на скачках — въезд при открытии и тычок
+ * в якорь. Во время перетаскивания переход снят: с ним ручка догоняет палец
+ * 220 мс и всё это время отстаёт, что и читается как лаг. Флаг ставит
+ * ReviewScale.tsx.
+ */
+.track-area[data-glide] .track-fill {
+  transition: width 220ms ease, background-color 220ms ease;
+}
+
+.track-area[data-glide] .handle {
+  transition: left 220ms ease, background-color 220ms ease;
+}
+
+/* Настоящий range поверх рисунка: тач, клавиатура и скринридер — бесплатно. */
+.track-input {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: -14px;
+  width: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: grab;
+  appearance: none;
+  background: none;
+  /*
+   * Без этого браузер на каждом касании сначала выясняет, не скролл ли это,
+   * и отдаёт движение слайдеру с задержкой — палец уже едет, а ручка стоит.
+   * Шкала горизонтальная, так что вертикальный жест ей всё равно не нужен.
+   */
+  touch-action: none;
+}
+
+.track-input:active {
+  cursor: grabbing;
+}
+
+.track-input:focus-visible + .handle {
+  outline: 2px solid var(--high);
+  outline-offset: 3px;
+}
+
+/* Якоря стоят на той же оси, что и ручка, — в этом весь смысл калибровки. */
+.anchors {
+  position: relative;
+  height: 46px;
+  margin-top: 10px;
+}
+
+.anchor {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--hint);
+  cursor: pointer;
+  max-width: 92px;
+}
+
+.anchor::before {
+  content: '';
+  width: 1px;
+  height: 8px;
+  margin-bottom: 2px;
+  background: var(--separator);
+}
+
+.anchor b {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.anchor span {
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: center;
+  opacity: 0.75;
+}
+
+.anchor:hover span,
+.anchor[data-active='true'] span,
+.anchor[data-active='true'] b {
+  color: var(--text);
+  opacity: 1;
+}
+
+.suggestion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--hint);
+  font-size: 13px;
+}
+
+.suggestion button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--link);
+  font-size: 13px;
+  cursor: pointer;
+}

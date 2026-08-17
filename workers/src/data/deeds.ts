@@ -1,5 +1,6 @@
 /** Строки `deeds`, `review_tokens`, `reviews` и их сборка в ответ клиенту. */
 
+import { REVIEWER_SLOTS, type ReviewerSlot } from '../../../lib/karma/review';
 import { DEED_CATEGORIES } from '../../../lib/karma/scoring';
 import type { DeedCategory, EffortLevel } from '../../../lib/karma/types';
 import type { Env } from '../env';
@@ -44,13 +45,15 @@ export interface ReviewRow {
   score: number;
   comment: string | null;
   submitted_at: string;
+  /** Кто оценил. NULL — анонимные оценки, оставшиеся от версии без логина. */
+  reviewer_user_id: number | null;
 }
 
 /** Состояние слота глазами автора дела. */
 export type SlotState = 'none' | 'waiting' | 'expired' | 'reviewed';
 
 export interface SlotView {
-  slot: 1 | 2;
+  slot: ReviewerSlot;
   state: SlotState;
   url: string | null;
   expiresAt: string | null;
@@ -64,12 +67,28 @@ export const isDeedCategory = (value: unknown): value is DeedCategory =>
 export const isEffortLevel = (value: unknown): value is EffortLevel =>
   value === 1 || value === 2 || value === 3;
 
+/**
+ * Ссылка на ревью — deep-link в Mini App, а не адрес отдельной страницы.
+ *
+ * Telegram отдаёт `startapp` в initData, поэтому по такой ссылке рецензент
+ * приходит уже опознанным: сервер видит его telegram_id и не даёт автору
+ * подтвердить своё же дело. Префикс `r` отличает её от приглашения в друзья
+ * (`f<id>`), а алфавит токена — те же символы, что Telegram допускает
+ * в start_param.
+ *
+ * Без BOT_USERNAME собрать deep-link не из чего: тогда отдаём прежний адрес,
+ * по которому Worker перенаправит в Telegram.
+ */
+export const REVIEW_REF_PREFIX = 'r';
+
 export const reviewUrl = (env: Env, token: string) =>
-  `${env.REVIEW_BASE_URL.replace(/\/$/, '')}/r/${token}`;
+  env.BOT_USERNAME
+    ? `https://t.me/${env.BOT_USERNAME}?startapp=${REVIEW_REF_PREFIX}${token}`
+    : `${env.REVIEW_BASE_URL.replace(/\/$/, '')}/r/${token}`;
 
 function slotView(
   env: Env,
-  slot: 1 | 2,
+  slot: ReviewerSlot,
   token: TokenRow | undefined,
   review: ReviewRow | undefined,
   now: string,
@@ -107,7 +126,7 @@ export function deedView(
   reviews: ReviewRow[],
   now: string = sqlNow(),
 ) {
-  const slots: SlotView[] = ([1, 2] as const).map((slot) =>
+  const slots: SlotView[] = REVIEWER_SLOTS.map((slot) =>
     slotView(
       env,
       slot,

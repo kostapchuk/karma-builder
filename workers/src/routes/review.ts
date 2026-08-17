@@ -1,26 +1,33 @@
 /**
- * Публичный маршрут рецензента. Самая критичная часть V2: здесь нет
- * авторизации, ссылку открывает посторонний человек в обычном браузере,
- * и ровно здесь начисляется карма.
+ * Маршрут рецензента. Самая критичная часть V2: ровно здесь начисляется карма.
  *
- * Два инварианта, за которые отвечает этот файл:
+ * Ссылка ведёт в Mini App (`?startapp=r<token>`), поэтому рецензент опознан —
+ * раньше страница открывалась в любом браузере без логина, и автор мог
+ * подтвердить собственное дело сам.
+ *
+ * Четыре инварианта, за которые отвечает этот файл:
  *   1. по одной ссылке засчитывается ровно одна оценка — даже при гонке;
- *   2. карма за дело начисляется ровно один раз — даже если оба сабмита
- *      увидят «оценок стало две» одновременно.
+ *   2. карма за дело начисляется ровно один раз — даже если сабмиты
+ *      одновременно увидят, что оценок набралось достаточно;
+ *   3. автор не оценивает своё дело;
+ *   4. один человек не оценивает одно дело дважды.
  *
- * Оба держатся не на проверках в коде, а на условиях в SQL внутри одной
- * транзакции: проверка «свободно ли» и запись происходят неразделимо.
+ * Первые два держатся не на проверках в коде, а на условиях в SQL внутри одной
+ * транзакции: проверка «свободно ли» и запись происходят неразделимо. Четвёртый
+ * страхуется уникальным индексом `(deed_id, reviewer_user_id)` — код проверяет
+ * его заранее только ради внятного ответа.
  */
 
 import {
   MAX_REVIEW_SCORE,
   REVIEW_ANCHORS,
   REVIEW_COMMENT_MAX_LENGTH,
+  REVIEWER_SLOTS,
   isValidScore,
 } from '../../../lib/karma/review';
 import type { DeedRow, ReviewRow, TokenRow } from '../data/deeds';
 import { aggregateScore, applyApproval } from '../data/progress';
-import { encodeBadges, getUserById } from '../data/users';
+import { encodeBadges, getUserById, type UserRow } from '../data/users';
 import type { Env } from '../env';
 import { HttpError, badRequest, json, notFound, readJson } from '../http';
 import { isExpired, sqlNow } from '../lib/time';
@@ -76,7 +83,10 @@ async function loadToken(env: Env, token: string): Promise<TokenContext | null> 
 }
 
 /** Почему ссылка не работает — клиент показывает разный текст. */
-function linkProblem(ctx: TokenContext, now: string): string | null {
+function linkProblem(ctx: TokenContext, viewer: UserRow, now: string): string | null {
+  // Своё дело — первым делом: автору незачем читать чужие подсказки по оценке,
+  // и текст ему нужен не «ссылка использована», а «нельзя оценивать себя».
+  if (ctx.deed.user_id === viewer.id) return 'cannot_review_own_deed';
   if (ctx.revoked_at) return 'link_revoked';
   if (ctx.used_at) return 'link_used';
   if (isExpired(ctx.expires_at, now)) return 'link_expired';
@@ -84,12 +94,25 @@ function linkProblem(ctx: TokenContext, now: string): string | null {
   return null;
 }
 
-export async function getReview(env: Env, token: string): Promise<Response> {
+/** Уже оценивал это дело — по другой ссылке или до перегенерации токена. */
+async function alreadyReviewed(env: Env, deedId: string, viewerId: number): Promise<boolean> {
+  const row = await env.DB.prepare(
+    'SELECT 1 AS hit FROM reviews WHERE deed_id = ?1 AND reviewer_user_id = ?2',
+  )
+    .bind(deedId, viewerId)
+    .first<{ hit: number }>();
+  return row !== null;
+}
+
+export async function getReview(env: Env, viewer: UserRow, token: string): Promise<Response> {
   const ctx = await loadToken(env, token);
   if (!ctx) throw notFound('link_invalid');
 
-  const problem = linkProblem(ctx, sqlNow());
+  const problem = linkProblem(ctx, viewer, sqlNow());
   if (problem) throw new HttpError(410, problem);
+  if (await alreadyReviewed(env, ctx.deed.id, viewer.id)) {
+    throw new HttpError(410, 'already_reviewed_by_you');
+  }
 
   return json({
     deed: {
@@ -106,12 +129,37 @@ export async function getReview(env: Env, token: string): Promise<Response> {
   });
 }
 
+/**
+ * Вставка оценки с разбором нарушения уникальности.
+ *
+ * Проверка «не оценивал ли уже» выше по коду отвечает за внятный текст, но
+ * между ней и записью помещается второй сабмит того же человека по другой
+ * ссылке. Ловит его индекс `(deed_id, reviewer_user_id)`; без этого разбора
+ * гонка возвращала бы 500 вместо объяснения.
+ */
+async function insertReview(env: Env, statements: D1PreparedStatement[]) {
+  try {
+    return await env.DB.batch(statements);
+  } catch (error) {
+    const text = error instanceof Error ? error.message : String(error);
+    if (/UNIQUE constraint failed: reviews\.deed_id, reviews\.reviewer_user_id/.test(text)) {
+      throw new HttpError(410, 'already_reviewed_by_you');
+    }
+    throw error;
+  }
+}
+
 interface SubmitBody {
   score?: unknown;
   comment?: unknown;
 }
 
-export async function submitReview(request: Request, env: Env, token: string): Promise<Response> {
+export async function submitReview(
+  request: Request,
+  env: Env,
+  reviewer: UserRow,
+  token: string,
+): Promise<Response> {
   const body = await readJson<SubmitBody>(request);
   if (!isValidScore(body.score)) throw badRequest('invalid_score');
   const comment =
@@ -121,18 +169,21 @@ export async function submitReview(request: Request, env: Env, token: string): P
   if (!ctx) throw notFound('link_invalid');
   const now = sqlNow();
 
-  const problem = linkProblem(ctx, now);
+  const problem = linkProblem(ctx, reviewer, now);
   if (problem) throw new HttpError(410, problem);
+  if (await alreadyReviewed(env, ctx.deed.id, reviewer.id)) {
+    throw new HttpError(410, 'already_reviewed_by_you');
+  }
 
   // INSERT ... SELECT: условие «токен ещё свободен» — часть самой вставки,
   // поэтому между проверкой и записью нельзя вклиниться. Гашение токена идёт
   // следом в той же транзакции; UNIQUE(deed_id, reviewer_slot) страхует сверху.
-  const [inserted] = await env.DB.batch([
+  const [inserted] = await insertReview(env, [
     env.DB.prepare(
-      `INSERT INTO reviews (deed_id, reviewer_slot, score, comment, submitted_at)
-       SELECT deed_id, reviewer_slot, ?1, ?2, ?3 FROM review_tokens
+      `INSERT INTO reviews (deed_id, reviewer_slot, score, comment, submitted_at, reviewer_user_id)
+       SELECT deed_id, reviewer_slot, ?1, ?2, ?3, ?5 FROM review_tokens
        WHERE token = ?4 AND used_at IS NULL AND revoked_at IS NULL AND expires_at > ?3`,
-    ).bind(body.score, comment, now, token),
+    ).bind(body.score, comment, now, token, reviewer.id),
     env.DB.prepare(
       `UPDATE review_tokens SET used_at = ?1
        WHERE token = ?2 AND used_at IS NULL AND revoked_at IS NULL AND expires_at > ?1`,
@@ -146,9 +197,9 @@ export async function submitReview(request: Request, env: Env, token: string): P
 }
 
 /**
- * Агрегация. Срабатывает, когда оценок стало две.
+ * Агрегация. Срабатывает, когда оценок стало столько, сколько слотов.
  *
- * Обе гонящиеся записи могут увидеть «две оценки» одновременно, поэтому
+ * Обе гонящиеся записи могут увидеть «оценок хватает» одновременно, поэтому
  * начисление кармы и перевод дела в approved идут одним батчем и оба
  * условны по статусу дела: применится ровно одна пара.
  */
@@ -160,7 +211,7 @@ async function settleDeed(env: Env, deedId: string, now: string) {
     .all<ReviewRow>();
   const reviews = results ?? [];
 
-  if (reviews.length < 2) {
+  if (reviews.length < REVIEWER_SLOTS.length) {
     await env.DB.prepare(
       `UPDATE deeds SET status = 'partially_reviewed' WHERE id = ?1 AND status = 'pending'`,
     )

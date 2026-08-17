@@ -102,6 +102,11 @@ function pickCelebration(profile: Profile): Celebration | null {
 function message(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.code === 'network') return 'Нет связи с сервером';
+    // Набор закрыт потолком MAX_USERS. Переоткрывать приложение бессмысленно,
+    // поэтому и текст другой, чем у проблем со входом.
+    if (error.code === 'signup_closed') {
+      return 'Пока идёт закрытый запуск — мест больше нет. Попробуйте позже.';
+    }
     if (error.isAuthProblem) return 'Telegram не подтвердил вход — переоткройте приложение';
   }
   return 'Не удалось загрузить данные';

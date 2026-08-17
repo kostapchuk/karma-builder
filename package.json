@@ -11,9 +11,8 @@
     "dev:api": "wrangler dev --config workers/wrangler.jsonc",
     "db:migrate:local": "wrangler d1 migrations apply karma-builder --local --config workers/wrangler.jsonc",
     "db:migrate": "wrangler d1 migrations apply karma-builder --remote --config workers/wrangler.jsonc",
-    "build:reviewer": "cd reviewer && VITE_API_BASE_URL= npm run build",
     "deploy:app": "npm run build && wrangler deploy --config wrangler.app.jsonc",
-    "deploy:api": "npm run build:reviewer && wrangler deploy --config workers/wrangler.jsonc",
+    "deploy:api": "wrangler deploy --config workers/wrangler.jsonc",
     "test:api": "tsx --test \"workers/tests/*.test.ts\"",
     "test:e2e": "tsx --test workers/tests/api.e2e.ts"
   },
