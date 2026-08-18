@@ -8,7 +8,7 @@
     "start": "npx serve out",
     "typecheck": "tsc --noEmit && tsc -p workers/tsconfig.json --noEmit",
     "test": "tsx --test \"tests/*.test.ts\"",
-    "dev:api": "wrangler dev --config workers/wrangler.jsonc",
+    "dev:api": "wrangler dev --config workers/wrangler.jsonc --port 8788",
     "db:migrate:local": "wrangler d1 migrations apply karma-builder --local --config workers/wrangler.jsonc",
     "db:migrate": "wrangler d1 migrations apply karma-builder --remote --config workers/wrangler.jsonc",
     "deploy:app": "npm run build && wrangler deploy --config wrangler.app.jsonc",

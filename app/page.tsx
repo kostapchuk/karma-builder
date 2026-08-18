@@ -117,24 +117,45 @@ export default function HomePage() {
         <DeedList deeds={deeds.slice(0, RECENT_LIMIT)} />
       </section>
 
-      <Link href="/leaderboard" className="btn secondary">
-        Лидерборд
-      </Link>
-      <Link href="/profile" className="btn secondary">
-        Профиль и бейджи
-      </Link>
-      {inviteLink && (
-        <button
-          type="button"
-          className="btn secondary"
-          onClick={() => {
-            hapticImpact('light');
-            void shareInvite(inviteLink);
-          }}
-        >
-          Пригласить друга
-        </button>
-      )}
+      {/*
+        Разделы одной карточкой, а не тремя кнопками в столбец. Шеврон только
+        у переходов: приглашение открывает шаринг Telegram, а не экран, и
+        обещать ему «дальше» нечестно.
+      */}
+      <nav className="menu">
+        <Link href="/leaderboard" className="menu-item">
+          <span className="icon">🏆</span>
+          <span>Лидерборд</span>
+          <span className="spacer" />
+          <span className="chevron">›</span>
+        </Link>
+
+        <Link href="/profile" className="menu-item">
+          <span className="icon">🎖️</span>
+          <span>Профиль и бейджи</span>
+          <span className="spacer" />
+          {profile.badges.length > 0 && (
+            <span className="value">
+              {profile.badges.length} {plural(profile.badges.length, 'бейдж', 'бейджа', 'бейджей')}
+            </span>
+          )}
+          <span className="chevron">›</span>
+        </Link>
+
+        {inviteLink && (
+          <button
+            type="button"
+            className="menu-item"
+            onClick={() => {
+              hapticImpact('light');
+              void shareInvite(inviteLink);
+            }}
+          >
+            <span className="icon">✉️</span>
+            <span>Пригласить друга</span>
+          </button>
+        )}
+      </nav>
 
       {celebration && (
         <LevelUpOverlay

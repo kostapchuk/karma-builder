@@ -178,6 +178,51 @@ a {
   color: var(--hint);
 }
 
+/* ---------- Меню разделов ----------
+ *
+ * Тот же материал, что у списка дел: общая карточка, разделители между
+ * соседними строками, та же иконка-плашка. Три отдельные кнопки в столбец
+ * читались как три плиты; одна карточка читается как один блок.
+ */
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  background: var(--section-bg);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 14px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: 15px;
+  text-align: left;
+  text-decoration: none;
+}
+
+.menu-item + .menu-item {
+  border-top: 1px solid var(--separator);
+}
+
+.menu-item:active {
+  background: color-mix(in srgb, var(--hint) 14%, transparent);
+  transition-duration: 0s;
+}
+
+.menu-item .value,
+.menu-item .chevron {
+  color: var(--hint);
+  font-size: 14px;
+  flex: none;
+}
+
 /* ---------- Список дел ---------- */
 
 .deed-list {
@@ -200,7 +245,8 @@ a {
   border-top: 1px solid var(--separator);
 }
 
-.deed .icon {
+.deed .icon,
+.menu-item .icon {
   font-size: 22px;
   width: 34px;
   height: 34px;

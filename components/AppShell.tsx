@@ -22,10 +22,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Порядок важен: store читает initData из SDK, значит SDK должен встать первым.
-    void initTelegram().then(() => {
-      setBooted(true);
-      return hydrate();
-    });
+    void initTelegram()
+      // Без этого сорвавшаяся инициализация оставляла экран загрузки навсегда:
+      // .then() не срабатывал, booted не выставлялся, и в консоли было пусто.
+      // Лучше пойти дальше без SDK — store упрётся в 401 и покажет ошибку
+      // с кнопкой «Попробовать снова», а не бесконечный росток.
+      .catch((error) => {
+        console.error('[app] initTelegram failed', error);
+      })
+      .then(() => {
+        setBooted(true);
+        return hydrate();
+      });
   }, [hydrate]);
 
   useBackButton();
