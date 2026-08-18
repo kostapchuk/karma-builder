@@ -7,6 +7,9 @@ import { hapticImpact } from '@/lib/telegram/haptics';
 import { shareInvite } from '@/lib/telegram/share';
 import { CATEGORY_META, plural } from '@/lib/ui/catalog';
 
+/** Вшивается на сборке из package.json — см. next.config.mjs. */
+const APP_VERSION = `v${process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0'}`;
+
 const LEVELS_SHOWN = 10;
 
 export default function ProfilePage() {
@@ -145,6 +148,14 @@ export default function ProfilePage() {
           Пригласить друга
         </button>
       )}
+
+      {/*
+        Версия сборки. Нужна не пользователю, а нам: по ней видно, что именно
+        открыто на устройстве, когда человек описывает поведение словами.
+      */}
+      <div className="hint" style={{ textAlign: 'center', opacity: 0.6 }}>
+        Karma Builder {APP_VERSION}
+      </div>
     </main>
   );
 }

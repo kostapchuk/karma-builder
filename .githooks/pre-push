@@ -1,0 +1,67 @@
+#!/bin/sh
+#
+# Бамп версии перед отправкой в main.
+#
+# Почему хук не досылает коммит сам: git вычисляет, какие SHA отправлять, ДО
+# запуска pre-push, поэтому созданный здесь коммит в текущий пуш не попадёт —
+# проверено. Досылать его отдельным `git push` изнутри хука тоже плохо: внешний
+# пуш после этого падает с «remote rejected», хотя всё уже уехало. Поэтому хук
+# фиксирует версию и честно останавливает отправку, прося повторить команду.
+#
+# Одной командой без повтора: `npm run push`.
+#
+# Включается один раз на машину: git config core.hooksPath .githooks
+
+set -e
+
+remote_name="$1"
+branch=$(git symbolic-ref --short HEAD 2>/dev/null || echo '')
+[ "$branch" = "main" ] || exit 0
+
+# Версию уже зафиксировали — это повторный пуш, пропускаем.
+if git log -1 --pretty=%s | grep -qE '^Версия [0-9]+\.[0-9]+\.[0-9]+$'; then
+  exit 0
+fi
+
+base=$(git rev-parse --quiet --verify "$remote_name/main" 2>/dev/null || echo '')
+if [ -n "$base" ]; then
+  range="$base..HEAD"
+else
+  range="HEAD"
+fi
+
+count=$(git rev-list --count "$range" 2>/dev/null || echo 0)
+[ "$count" -gt 0 ] || exit 0
+
+# Какую часть semver двигать. Ломающее важнее нового, новое важнее правки;
+# коммит без префикса — тоже patch, чтобы версия росла на каждом пуше.
+if git log --format='%s%n%b' "$range" | grep -qE '^BREAKING CHANGE|^[a-z]+(\([^)]*\))?!:'; then
+  bump=major
+elif git log --format='%s' "$range" | grep -qE '^feat(\([^)]*\))?:'; then
+  bump=minor
+else
+  bump=patch
+fi
+
+version=$(npm version "$bump" --no-git-tag-version | tr -d 'v\n')
+
+# package-lock.json добавляем только если он есть: без проверки `git add` падает
+# на несуществующем пути, а с `set -e` хук обрывается уже ПОСЛЕ правки версии —
+# она остаётся незакоммиченной, и следующий пуш бампает второй раз.
+git add -- package.json
+if [ -f package-lock.json ]; then
+  git add -- package-lock.json
+fi
+git commit -q -m "Версия $version"
+
+cat >&2 <<MSG
+
+  Версия поднята до $version ($bump, по $count коммитам) и закоммичена.
+  Отправка остановлена: git выбирает коммиты до запуска хука, поэтому
+  свежий коммит в этот пуш не попал бы.
+
+  Повторите:  git push
+  Или сразу:  npm run push
+
+MSG
+exit 1

@@ -14,7 +14,8 @@
     "deploy:app": "npm run build && wrangler deploy --config wrangler.app.jsonc",
     "deploy:api": "wrangler deploy --config workers/wrangler.jsonc",
     "test:api": "tsx --test \"workers/tests/*.test.ts\"",
-    "test:e2e": "tsx --test workers/tests/api.e2e.ts"
+    "test:e2e": "tsx --test workers/tests/api.e2e.ts",
+    "push": "git push || git push"
   },
   "dependencies": {
     "@telegram-apps/sdk-react": "^3.3.9",
