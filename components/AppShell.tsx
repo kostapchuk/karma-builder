@@ -153,7 +153,10 @@ function useReviewDeepLink(booted: boolean) {
     // Отмечаем до перехода: эффект переживёт смену маршрута и иначе увёл бы
     // обратно, стоит пользователю уйти с экрана оценки.
     consumedReviewTokens.add(token);
-    router.replace(`/rate/?t=${token}`);
+    // push, а не replace: иначе `/` не остаётся в истории и кнопке «назад»
+    // (нативной Telegram или её замене вне клиента) некуда вести — пользователь
+    // застревает на экране оценки.
+    router.push(`/rate/?t=${token}`);
   }, [booted, router]);
 }
 
