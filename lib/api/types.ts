@@ -64,6 +64,7 @@ export interface MeResponse {
   profile: Profile;
   inviteLink: string | null;
   counts: { pending: number; approved: number };
+  referrals: ReferralSummary;
 }
 
 export interface DeedsResponse {
@@ -133,6 +134,13 @@ export function displayScore(deed: DeedView): number {
 }
 
 /** Дело чужими глазами: то, что видит рецензент, придя по ссылке. */
+/** Сводка по приглашённым: их всего, дошедших до подтверждения, и что принесли. */
+export interface ReferralSummary {
+  invited: number;
+  active: number;
+  karma: number;
+}
+
 export interface ReviewPageResponse {
   deed: {
     description: string;

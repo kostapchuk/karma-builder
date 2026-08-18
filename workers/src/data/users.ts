@@ -20,6 +20,14 @@ export interface UserRow {
   deed_count: number;
   category_counts: string;
   badges: string;
+  /** Кто пригласил. NULL — пришёл сам. */
+  referred_by: number | null;
+  /** Разовый бонус за ЭТОГО юзера его пригласившему уже выплачен. */
+  referral_bonus_paid_at: string | null;
+  /** Сколько кармы пришло от приглашённых; входит в karma_total. */
+  karma_referral: number;
+  /** Копилка сотых балла от доли, 0..99. */
+  referral_fraction: number;
   created_at: string;
   last_active_at: string | null;
 }

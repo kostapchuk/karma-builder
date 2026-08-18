@@ -19,6 +19,11 @@
  */
 
 import {
+  HUNDREDTHS_PER_POINT,
+  REFERRAL_JOIN_BONUS,
+  REFERRAL_SHARE_PERCENT,
+} from '../../../lib/karma/referral';
+import {
   MAX_REVIEW_SCORE,
   REVIEW_ANCHORS,
   REVIEW_COMMENT_MAX_LENGTH,
@@ -234,15 +239,63 @@ async function settleDeed(env: Env, deedId: string, now: string) {
   const finalScore = aggregateScore(reviews.map((r) => r.score));
   const update = applyApproval(author, finalScore, Math.floor(Date.now() / 1000));
 
+  // Разовый бонус причитается, только если автора кто-то пригласил и за него
+  // ещё не платили. Дальше это число просто прибавляется в SQL.
+  const joinBonus =
+    author.referred_by !== null && author.referral_bonus_paid_at === null
+      ? REFERRAL_JOIN_BONUS
+      : 0;
+
+  // Условие «дело ещё не подтверждено» повторяется в каждом операторе, а сам
+  // перевод дела идёт последним: пока он не выполнен, все проверки видят
+  // прежний статус. Так вся пачка применяется ровно один раз даже в гонке —
+  // включая выплаты пригласившему, где двойное срабатывание значило бы
+  // двойной бонус.
+  const unsettled = `EXISTS (
+    SELECT 1 FROM deeds WHERE id = ?9 AND status IN ('pending','partially_reviewed')
+  )`;
+
   await env.DB.batch([
     // Юзер обновляется первым: после перевода дела в approved условие уже
     // не выполнится — транзакция видит собственные записи.
     env.DB.prepare(
       `UPDATE users SET karma_total = karma_total + ?1, level = ?2, badges = ?3
-       WHERE id = ?4 AND EXISTS (
-         SELECT 1 FROM deeds WHERE id = ?5 AND status IN ('pending','partially_reviewed')
-       )`,
+       WHERE id = ?4 AND ${unsettled.replace('?9', '?5')}`,
     ).bind(finalScore, update.level, encodeBadges(update.badges), author.id, deedId),
+
+    // Доля и бонус пригласившему. Арифметика живёт в SQL, а не в коде:
+    // читать копилку и писать её обратно значило бы потерять начисление,
+    // если два дела разных приглашённых подтвердят одновременно.
+    // Сотые от процента — это ровно final_score * REFERRAL_SHARE_PERCENT.
+    env.DB.prepare(
+      // CAST на КАЖДОМ параметре, а не только на делителе: D1 передаёт числа
+      // вещественными, и `/` тогда делит вещественно — 50/100 давало 0.5,
+      // а карма уезжала в дробь (10.5 вместо 10).
+      `UPDATE users SET
+         referral_fraction = (referral_fraction + CAST(?1 AS INTEGER)) % CAST(?2 AS INTEGER),
+         karma_referral = karma_referral
+           + (referral_fraction + CAST(?1 AS INTEGER)) / CAST(?2 AS INTEGER)
+           + CAST(?3 AS INTEGER),
+         karma_total = karma_total
+           + (referral_fraction + CAST(?1 AS INTEGER)) / CAST(?2 AS INTEGER)
+           + CAST(?3 AS INTEGER)
+       WHERE id = ?4 AND ${unsettled.replace('?9', '?5')}`,
+    ).bind(
+      finalScore * REFERRAL_SHARE_PERCENT,
+      HUNDREDTHS_PER_POINT,
+      joinBonus,
+      author.referred_by ?? 0,
+      deedId,
+    ),
+
+    // Отметка «бонус за этого человека выплачен» — на приглашённом, чтобы
+    // «один бонус за одного» проверялось одной строкой.
+    env.DB.prepare(
+      `UPDATE users SET referral_bonus_paid_at = ?1
+       WHERE id = ?2 AND referral_bonus_paid_at IS NULL AND referred_by IS NOT NULL
+         AND ${unsettled.replace('?9', '?3')}`,
+    ).bind(now, author.id, deedId),
+
     env.DB.prepare(
       `UPDATE deeds SET final_score = ?1, status = 'approved', resolved_at = ?2
        WHERE id = ?3 AND status IN ('pending','partially_reviewed')`,

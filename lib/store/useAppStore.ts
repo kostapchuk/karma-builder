@@ -12,7 +12,13 @@
 import { create } from 'zustand';
 
 import { ApiError, api } from '../api/client';
-import type { DeedView, LeaderboardEntry, Profile, ReviewLink } from '../api/types';
+import type {
+  DeedView,
+  LeaderboardEntry,
+  Profile,
+  ReferralSummary,
+  ReviewLink,
+} from '../api/types';
 import type { Badge, DeedCategory, EffortLevel } from '../karma/types';
 import { initDataStartParam } from '@telegram-apps/sdk-react';
 
@@ -36,6 +42,7 @@ interface AppState {
   profile: Profile | null;
   inviteLink: string | null;
   counts: { pending: number; approved: number };
+  referrals: ReferralSummary;
   deeds: DeedView[];
   celebration: Celebration | null;
 
@@ -111,6 +118,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   profile: null,
   inviteLink: null,
   counts: { pending: 0, approved: 0 },
+  referrals: { invited: 0, active: 0, karma: 0 },
   deeds: [],
   celebration: null,
   friends: null,
@@ -130,6 +138,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         profile: me.profile,
         inviteLink: me.inviteLink,
         counts: me.counts,
+        referrals: me.referrals,
         deeds: history.deeds,
         celebration: pickCelebration(me.profile),
       });

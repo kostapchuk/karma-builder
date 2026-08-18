@@ -16,6 +16,7 @@ export default function ProfilePage() {
   const profile = useAppStore((s) => s.profile);
   const counts = useAppStore((s) => s.counts);
   const inviteLink = useAppStore((s) => s.inviteLink);
+  const referrals = useAppStore((s) => s.referrals);
 
   if (!profile) return null;
 
@@ -134,6 +135,13 @@ export default function ProfilePage() {
           <div className="hint" style={{ marginTop: 6 }}>
             Дела хранятся на сервере и доступны со всех ваших устройств.
           </div>
+          {referrals.invited > 0 && (
+            <div className="hint" style={{ marginTop: 6 }}>
+              Приглашено {referrals.invited}, из них {referrals.active} довели дело до
+              подтверждения · принесли {referrals.karma}{' '}
+              {plural(referrals.karma, 'карму', 'кармы', 'кармы')}
+            </div>
+          )}
         </div>
       </section>
 

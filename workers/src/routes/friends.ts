@@ -42,6 +42,23 @@ export async function addFriend(request: Request, env: Env, user: UserRow): Prom
   const now = sqlNow();
   // Две симметричные строки: «мои друзья» — это WHERE user_id = ?, без OR.
   await env.DB.batch([
+    // Кто пригласил — ставится один раз и только тому, кто ещё не начинал.
+    // Условия внутри UPDATE, а не проверками до него: иначе два одновременных
+    // перехода по разным ссылкам могли бы оба записать себя пригласившим.
+    //
+    //   referred_by IS NULL      — приглашение не переигрывается;
+    //   deed_count = 0           — состоявшийся юзер не становится чьим-то
+    //   AND karma_total = 0        приглашённым задним числом;
+    //   NOT EXISTS(...)          — взаимные приглашения по кругу, где двое
+    //                              приводят друг друга и оба получают бонус.
+    env.DB.prepare(
+      `UPDATE users SET referred_by = ?1
+       WHERE id = ?2
+         AND referred_by IS NULL
+         AND deed_count = 0
+         AND karma_total = 0
+         AND NOT EXISTS (SELECT 1 FROM users WHERE id = ?1 AND referred_by = ?2)`,
+    ).bind(friendId, user.id),
     env.DB.prepare(
       `INSERT INTO friendships (user_id, friend_id, status, created_at) VALUES (?1, ?2, 'accepted', ?3)
        ON CONFLICT(user_id, friend_id) DO UPDATE SET status = 'accepted'`,

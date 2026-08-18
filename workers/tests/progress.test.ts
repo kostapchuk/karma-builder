@@ -7,6 +7,11 @@ import test from 'node:test';
 
 import { DEED_CATEGORIES } from '../../lib/karma/scoring.ts';
 import { aggregateScore, applyApproval, applyDeedCreation } from '../src/data/progress.ts';
+import {
+  REFERRAL_JOIN_BONUS,
+  REFERRAL_SHARE_PERCENT,
+  referralPayout,
+} from '../../lib/karma/referral.ts';
 import { inviteRef, parseRef } from '../src/routes/friends.ts';
 import type { UserRow } from '../src/data/users.ts';
 
@@ -25,6 +30,10 @@ function user(overrides: Partial<UserRow> = {}): UserRow {
     deed_count: 0,
     category_counts: JSON.stringify(DEED_CATEGORIES.map(() => 0)),
     badges: '[]',
+    referred_by: null,
+    referral_bonus_paid_at: null,
+    karma_referral: 0,
+    referral_fraction: 0,
     created_at: '2026-08-01 10:00:00',
     last_active_at: null,
     ...overrides,
@@ -103,4 +112,46 @@ test('deep-link друга разбирается и отвергает мусо
   assert.equal(parseRef('f-1'), null);
   assert.equal(parseRef(42), null);
   assert.equal(parseRef(undefined), null);
+});
+
+test('доля от дела приглашённого копится в сотых и не теряется', () => {
+  // 1% от дела в 25 карм — это 0.25 балла. При обычном округлении получился бы
+  // ноль на каждом начислении, и доля не пришла бы никогда.
+  const first = referralPayout(0, 25, false);
+  assert.equal(first.karma, 0);
+  assert.equal(first.fraction, 25);
+
+  const second = referralPayout(first.fraction, 25, false);
+  assert.equal(second.karma, 0);
+  assert.equal(second.fraction, 50);
+
+  const third = referralPayout(second.fraction, 25, false);
+  assert.equal(third.karma, 0);
+  assert.equal(third.fraction, 75);
+
+  // Четвёртое дело добирает целый балл, остаток обнуляется.
+  const fourth = referralPayout(third.fraction, 25, false);
+  assert.equal(fourth.karma, 1);
+  assert.equal(fourth.fraction, 0);
+});
+
+test('остаток переносится, а не сгорает на границе балла', () => {
+  const payout = referralPayout(90, 50, false);
+  assert.equal(payout.karma, 1);
+  assert.equal(payout.fraction, 40, '90 + 50 = 140 сотых → 1 балл и 40 в копилке');
+});
+
+test('разовый бонус прибавляется к доле, а не заменяет её', () => {
+  const payout = referralPayout(99, 50, true);
+  // 99 + 50 = 149 сотых → 1 балл, плюс разовый бонус сверху.
+  assert.equal(payout.karma, 1 + REFERRAL_JOIN_BONUS);
+  assert.equal(payout.fraction, 49);
+});
+
+test('доля считается от размера дела, а не поштучно', () => {
+  const small = referralPayout(0, 5, false);
+  const big = referralPayout(0, 50, false);
+  assert.equal(small.fraction, 5 * REFERRAL_SHARE_PERCENT);
+  assert.equal(big.fraction, 50 * REFERRAL_SHARE_PERCENT);
+  assert.ok(big.fraction > small.fraction, 'крупное дело приносит больше мелкого');
 });

@@ -41,8 +41,11 @@ export function sqlRows<T>(command: string): T[] {
 
 /** Чистая база на каждый прогон: тесты не должны зависеть от прошлых запусков. */
 export function resetDatabase(): void {
+  // referred_by ссылается на сами users, поэтому ссылки снимаются до удаления:
+  // иначе внешний ключ не даёт снести таблицу, на которую она же и смотрит.
   sql(
-    'DELETE FROM reviews; DELETE FROM review_tokens; DELETE FROM deeds; DELETE FROM friendships; DELETE FROM users;',
+    'DELETE FROM reviews; DELETE FROM review_tokens; DELETE FROM deeds; DELETE FROM friendships;' +
+      ' UPDATE users SET referred_by = NULL; DELETE FROM users;',
   );
 }
 
@@ -63,8 +66,17 @@ export async function startWorker(): Promise<void> {
   );
 
   const logs: string[] = [];
-  child.stdout?.on('data', (chunk) => logs.push(String(chunk)));
-  child.stderr?.on('data', (chunk) => logs.push(String(chunk)));
+  // E2E_VERBOSE=1 показывает вывод воркера по ходу прогона. Без него падение
+  // внутри запроса выглядит как «fetch failed», и причину искать негде:
+  // логи копятся, но после успешного старта их никто не печатает.
+  const verbose = Boolean(process.env.E2E_VERBOSE);
+  const collect = (chunk: unknown) => {
+    const text = String(chunk);
+    logs.push(text);
+    if (verbose) process.stderr.write(text);
+  };
+  child.stdout?.on('data', collect);
+  child.stderr?.on('data', collect);
 
   const deadline = Date.now() + 60_000;
   while (Date.now() < deadline) {
@@ -78,6 +90,27 @@ export async function startWorker(): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 400));
   }
   throw new Error(`wrangler dev не поднялся за 60 с:\n${logs.join('')}`);
+}
+
+/**
+ * Дождаться, что воркер снова отвечает.
+ *
+ * `resetDatabase` поднимает отдельный `wrangler d1 execute --local` по тому же
+ * файлу SQLite, который держит живой `wrangler dev`, и после этого первое
+ * обращение к API может прилететь в оборванное соединение (ECONNRESET).
+ * Пинг health восстанавливает его до того, как тест начнёт проверять смысл.
+ */
+export async function waitForWorker(attempts = 20): Promise<void> {
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      const response = await fetch(`${BASE_URL}/api/health`);
+      if (response.ok) return;
+    } catch {
+      // соединение оборвано сбросом базы — пробуем ещё
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  throw new Error('воркер не ответил после сброса базы');
 }
 
 export async function stopWorker(): Promise<void> {

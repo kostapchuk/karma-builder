@@ -22,6 +22,7 @@ export default function HomePage() {
   const celebration = useAppStore((s) => s.celebration);
   const dismissCelebration = useAppStore((s) => s.dismissCelebration);
   const inviteLink = useAppStore((s) => s.inviteLink);
+  const referrals = useAppStore((s) => s.referrals);
 
   const nativeButton = useMainButton({
     text: 'Добавить дело',
@@ -153,6 +154,13 @@ export default function HomePage() {
           >
             <span className="icon">✉️</span>
             <span>Пригласить друга</span>
+            <span className="spacer" />
+            {referrals.invited > 0 && (
+              <span className="value">
+                {referrals.invited}{' '}
+                {plural(referrals.invited, 'приглашён', 'приглашено', 'приглашено')}
+              </span>
+            )}
           </button>
         )}
       </nav>

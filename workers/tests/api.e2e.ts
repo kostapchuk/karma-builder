@@ -22,6 +22,7 @@ import {
   sqlRows,
   startWorker,
   stopWorker,
+  waitForWorker,
 } from './helpers/server.ts';
 
 const ANNA = signInitData(BOT_TOKEN, { id: 1001, first_name: 'Аня', username: 'anna' });
@@ -61,8 +62,9 @@ const reviewersFor = (author: string) =>
   [BORIS, VERA, ANNA].filter((who) => who !== author).slice(0, REVIEWER_SLOTS.length);
 
 const karmaOf = (telegramId: number) =>
-  sqlRows<{ karma_total: number }>(
-    `SELECT karma_total FROM users WHERE telegram_id = ${telegramId}`,
+  sqlRows<{ karma_total: number; karma_referral: number; referral_fraction: number }>(
+    `SELECT karma_total, karma_referral, referral_fraction
+       FROM users WHERE telegram_id = ${telegramId}`,
   )[0];
 
 test('приватный маршрут без initData и с подделанной подписью отвечает 401', async () => {
@@ -500,6 +502,89 @@ test('CORS: preflight с заголовком initData разрешён', async 
   );
 });
 
+const referredBy = (telegramId: number) =>
+  sqlRows<{ referred_by: number | null }>(
+    `SELECT referred_by FROM users WHERE telegram_id = ${telegramId}`,
+  )[0].referred_by;
+
+test('приглашённый: разовый бонус с первым подтверждением, доля — с каждого дела', async () => {
+  const INVITER = signInitData(BOT_TOKEN, { id: 2101, first_name: 'Пригласивший' });
+  const INVITEE = signInitData(BOT_TOKEN, { id: 2102, first_name: 'Приглашённый' });
+
+  const inviter = await api<{ profile: { id: number } }>('GET', '/api/me', { initData: INVITER });
+  await api('GET', '/api/me', { initData: INVITEE });
+
+  const added = await api('POST', '/api/friends/add', {
+    initData: INVITEE,
+    body: { ref: `f${inviter.body.profile.id}` },
+  });
+  assert.equal(added.status, 200);
+  assert.equal(referredBy(2102), inviter.body.profile.id, 'пригласивший записан');
+
+  // Пока дело не подтвердили, пригласившему не причитается ничего.
+  const deed = await deedWithLinks(INVITEE);
+  assert.equal(karmaOf(2101).karma_total, 0);
+
+  await api('POST', `/api/review/${deed.tokens[0]}`, { initData: BORIS, body: { score: 50 } });
+
+  // Разовый бонус пришёл; доля 1% от 50 — это 50 сотых, до целого балла не хватает.
+  // Строку читаем разом: каждый karmaOf поднимает отдельный `wrangler d1
+  // execute` по той же базе, которую держит живой воркер, и частые вызовы
+  // подряд роняют его.
+  const afterFirst = karmaOf(2101);
+  assert.equal(afterFirst.karma_total, 10);
+  assert.equal(afterFirst.karma_referral, 10);
+  assert.equal(afterFirst.referral_fraction, 50);
+
+  const second = await deedWithLinks(INVITEE);
+  await api('POST', `/api/review/${second.tokens[0]}`, { initData: BORIS, body: { score: 50 } });
+
+  // Бонус не повторился, зато вторые 50 сотых добрали целый балл.
+  const afterSecond = karmaOf(2101);
+  assert.equal(afterSecond.karma_total, 11);
+  assert.equal(afterSecond.karma_referral, 11);
+  assert.equal(afterSecond.referral_fraction, 0);
+
+  // Приглашённому его собственная карма достаётся полностью, без вычетов.
+  const invitee = karmaOf(2102);
+  assert.equal(invitee.karma_total, 100);
+  assert.equal(invitee.karma_referral, 0);
+
+  const me = await api<{ referrals: { invited: number; active: number; karma: number } }>(
+    'GET',
+    '/api/me',
+    { initData: INVITER },
+  );
+  assert.deepEqual(me.body.referrals, { invited: 1, active: 1, karma: 11 });
+});
+
+test('состоявшийся юзер не становится приглашённым задним числом', async () => {
+  const LATE = signInitData(BOT_TOKEN, { id: 2103, first_name: 'Поздний' });
+  const late = await api<{ profile: { id: number } }>('GET', '/api/me', { initData: LATE });
+
+  // У Ани уже есть дела и карма — приглашение к ней применяться не должно.
+  const response = await api('POST', '/api/friends/add', {
+    initData: ANNA,
+    body: { ref: `f${late.body.profile.id}` },
+  });
+  assert.equal(response.status, 200, 'в друзья добавились');
+  assert.equal(referredBy(1001), null, 'но пригласившим никто не записался');
+});
+
+test('взаимные приглашения по кругу не засчитываются', async () => {
+  const A = signInitData(BOT_TOKEN, { id: 2104, first_name: 'А' });
+  const B = signInitData(BOT_TOKEN, { id: 2105, first_name: 'Б' });
+  const aMe = await api<{ profile: { id: number } }>('GET', '/api/me', { initData: A });
+  const bMe = await api<{ profile: { id: number } }>('GET', '/api/me', { initData: B });
+
+  await api('POST', '/api/friends/add', { initData: B, body: { ref: `f${aMe.body.profile.id}` } });
+  assert.equal(referredBy(2105), aMe.body.profile.id);
+
+  // Обратный переход: оба ещё без дел, и без защиты Б стал бы пригласившим А.
+  await api('POST', '/api/friends/add', { initData: A, body: { ref: `f${bMe.body.profile.id}` } });
+  assert.equal(referredBy(2104), null, 'круг разорван');
+});
+
 test('база после прогона остаётся консистентной', () => {
   // Ни одного дела в approved без итогового балла и наоборот.
   const broken = sqlRows<{ n: number }>(
@@ -509,12 +594,13 @@ test('база после прогона остаётся консистентн
   );
   assert.equal(broken[0].n, 0);
 
-  // Карма каждого юзера равна сумме итоговых баллов его подтверждённых дел.
+  // Карма каждого юзера равна сумме его подтверждённых дел плюс то, что
+  // принесли приглашённые. До реферальных выплат правая часть была короче.
   const mismatched = sqlRows<{ n: number }>(
     `SELECT COUNT(*) AS n FROM users u WHERE u.karma_total <> (
        SELECT COALESCE(SUM(final_score), 0) FROM deeds d
        WHERE d.user_id = u.id AND d.status = 'approved'
-     )`,
+     ) + u.karma_referral`,
   );
   assert.equal(mismatched[0].n, 0);
 
@@ -523,6 +609,7 @@ test('база после прогона остаётся консистентн
 
 test('потолок MAX_USERS закрывает набор новых, но не выгоняет уже заведённых', async () => {
   resetDatabase();
+  await waitForWorker();
 
   // Значение берём из того же конфига, которым поднят тестовый Worker:
   // дублировать число в тесте значило бы проверять не настройку, а копию.
