@@ -14,12 +14,11 @@ export async function getMe(request: Request, env: Env, user: UserRow): Promise<
   const counters = await env.DB.prepare(
     `SELECT
        COUNT(*) FILTER (WHERE status IN ('pending','partially_reviewed')) AS pending,
-       COUNT(*) FILTER (WHERE status = 'approved') AS approved,
-       COUNT(*) FILTER (WHERE status = 'legacy_unverified') AS legacy
+       COUNT(*) FILTER (WHERE status = 'approved') AS approved
      FROM deeds WHERE user_id = ?1`,
   )
     .bind(user.id)
-    .first<{ pending: number; approved: number; legacy: number }>();
+    .first<{ pending: number; approved: number }>();
 
   return json({
     profile: publicProfile(user, today),
@@ -27,7 +26,6 @@ export async function getMe(request: Request, env: Env, user: UserRow): Promise<
     counts: {
       pending: counters?.pending ?? 0,
       approved: counters?.approved ?? 0,
-      legacy: counters?.legacy ?? 0,
     },
   });
 }

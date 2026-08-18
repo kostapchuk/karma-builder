@@ -13,7 +13,6 @@ export interface UserRow {
   first_name: string | null;
   photo_url: string | null;
   karma_total: number;
-  karma_self_total: number;
   level: number;
   streak_current: number;
   streak_longest: number;
@@ -21,17 +20,13 @@ export interface UserRow {
   deed_count: number;
   category_counts: string;
   badges: string;
-  legacy_imported_at: string | null;
   created_at: string;
   last_active_at: string | null;
 }
 
 /**
- * Первый запрос от юзера заводит строку, последующие обновляют профиль:
- * имя и аватар в Telegram меняются, а лидерборд должен показывать текущие.
- */
-/**
- * Заводит юзера или обновляет его профиль.
+ * Первый запрос от юзера заводит строку, последующие обновляют профиль: имя и
+ * аватар в Telegram меняются, а лидерборд должен показывать текущие.
  *
  * `limit > 0` закрывает набор: новых не пускаем, уже заведённые продолжают
  * ходить как ни в чём не бывало. Условие «мест ещё хватает» живёт внутри
@@ -128,7 +123,6 @@ export function publicProfile(row: UserRow, today: string = utcDateKey()) {
     firstName: row.first_name,
     photoUrl: row.photo_url,
     karmaTotal: row.karma_total,
-    karmaSelfTotal: row.karma_self_total,
     level: karma.level,
     levelTitle: levelTitle(karma.level),
     currentLevelXp: karma.currentLevelXp,
@@ -141,6 +135,5 @@ export function publicProfile(row: UserRow, today: string = utcDateKey()) {
     // подгружается страницами — по ней их не сложить.
     categoryCounts: categoryCounts(row),
     badges: badges(row),
-    legacyImported: row.legacy_imported_at !== null,
   };
 }

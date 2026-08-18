@@ -162,7 +162,6 @@ export async function getDeed(env: Env, user: UserRow, id: string): Promise<Resp
 export async function sendReview(request: Request, env: Env, user: UserRow, id: string): Promise<Response> {
   const deed = await ownDeed(env, user, id);
   if (deed.status === 'approved') throw new HttpError(409, 'deed_already_approved');
-  if (deed.status === 'legacy_unverified') throw new HttpError(409, 'deed_legacy_not_reviewable');
 
   const { tokens, reviews } = await loadSlotData(env.DB, [id]);
   const now = sqlNow();

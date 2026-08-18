@@ -17,7 +17,6 @@ import type {
   CreateDeedResponse,
   DeedsResponse,
   FriendProfileResponse,
-  ImportLegacyResponse,
   LeaderboardResponse,
   MeResponse,
   ReviewPageResponse,
@@ -128,6 +127,4 @@ export const api = {
 
   addFriend: (ref: string) => request<{ friend: { id: number } }>('POST', '/api/friends/add', { ref }),
 
-  importLegacy: (deeds: unknown[]) =>
-    request<ImportLegacyResponse>('POST', '/api/import/legacy', { deeds }),
 };

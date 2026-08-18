@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { ALPHABET, legacyDeedId, randomId, reviewToken } from '../src/lib/ids.ts';
+import { ALPHABET, randomId, reviewToken } from '../src/lib/ids.ts';
 
 test('алфавит ровно 64 символа', () => {
   // Маска `byte & 63` даёт индексы 0..63. Символом меньше — и часть байт
@@ -33,10 +33,4 @@ test('токены не повторяются', () => {
 test('randomId уважает запрошенную длину', () => {
   assert.equal(randomId(1).length, 1);
   assert.equal(randomId(64).length, 64);
-});
-
-test('id импортированного дела детерминирован — повторный импорт не двоит', () => {
-  assert.equal(legacyDeedId(7, 'abc12345'), 'l7-abc12345');
-  assert.equal(legacyDeedId(7, 'abc12345'), legacyDeedId(7, 'abc12345'));
-  assert.notEqual(legacyDeedId(8, 'abc12345'), legacyDeedId(7, 'abc12345'));
 });

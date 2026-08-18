@@ -25,7 +25,6 @@ export const STATUS_META: Record<DeedView['status'], { label: string; tone: 'wai
   approved: { label: 'Подтверждено', tone: 'done' },
   rejected: { label: 'Отклонено', tone: 'muted' },
   expired: { label: NEEDED === 1 ? 'Ссылка истекла' : 'Ссылки истекли', tone: 'muted' },
-  legacy_unverified: { label: 'Из прежней версии', tone: 'muted' },
 };
 
 interface Props {

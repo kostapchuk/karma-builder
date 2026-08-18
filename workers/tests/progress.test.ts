@@ -8,7 +8,6 @@ import test from 'node:test';
 import { DEED_CATEGORIES } from '../../lib/karma/scoring.ts';
 import { aggregateScore, applyApproval, applyDeedCreation } from '../src/data/progress.ts';
 import { inviteRef, parseRef } from '../src/routes/friends.ts';
-import { mergeStreaks, streakFromDates } from '../src/routes/importLegacy.ts';
 import type { UserRow } from '../src/data/users.ts';
 
 function user(overrides: Partial<UserRow> = {}): UserRow {
@@ -19,7 +18,6 @@ function user(overrides: Partial<UserRow> = {}): UserRow {
     first_name: 'Аня',
     photo_url: null,
     karma_total: 0,
-    karma_self_total: 0,
     level: 1,
     streak_current: 0,
     streak_longest: 0,
@@ -27,7 +25,6 @@ function user(overrides: Partial<UserRow> = {}): UserRow {
     deed_count: 0,
     category_counts: JSON.stringify(DEED_CATEGORIES.map(() => 0)),
     badges: '[]',
-    legacy_imported_at: null,
     created_at: '2026-08-01 10:00:00',
     last_active_at: null,
     ...overrides,
@@ -96,35 +93,6 @@ test('итог — среднее двух оценок, половина окр
   assert.equal(aggregateScore([20, 31]), 26);
   assert.equal(aggregateScore([0, 0]), 0);
   assert.equal(aggregateScore([50, 50]), 50);
-});
-
-test('стрик из истории V1: считаются календарные дни, а не дела', () => {
-  const streak = streakFromDates([
-    '2026-08-10',
-    '2026-08-10', // два дела в один день — один день стрика
-    '2026-08-11',
-    '2026-08-12',
-    '2026-08-15', // пропуск: серия начинается заново
-    '2026-08-16',
-  ]);
-
-  assert.equal(streak.longestStreak, 3);
-  assert.equal(streak.currentStreak, 2);
-  assert.equal(streak.lastDeedDate, '2026-08-16');
-});
-
-test('слияние стриков: длиннейший берётся общий, текущий — от свежей даты', () => {
-  const current = { currentStreak: 2, longestStreak: 2, lastDeedDate: '2026-08-17' };
-  const imported = { currentStreak: 5, longestStreak: 9, lastDeedDate: '2026-08-01' };
-
-  const merged = mergeStreaks(current, imported);
-  assert.equal(merged.lastDeedDate, '2026-08-17');
-  assert.equal(merged.currentStreak, 2);
-  assert.equal(merged.longestStreak, 9);
-
-  // Пустая история V2 — берём импортированную серию целиком.
-  const fresh = mergeStreaks({ currentStreak: 0, longestStreak: 0, lastDeedDate: '' }, imported);
-  assert.deepEqual(fresh, imported);
 });
 
 test('deep-link друга разбирается и отвергает мусор', () => {

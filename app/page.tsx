@@ -19,7 +19,6 @@ export default function HomePage() {
   const profile = useAppStore((s) => s.profile);
   const counts = useAppStore((s) => s.counts);
   const deeds = useAppStore((s) => s.deeds);
-  const legacyImport = useAppStore((s) => s.legacyImport);
   const celebration = useAppStore((s) => s.celebration);
   const dismissCelebration = useAppStore((s) => s.dismissCelebration);
   const inviteLink = useAppStore((s) => s.inviteLink);
@@ -39,17 +38,6 @@ export default function HomePage() {
 
   return (
     <main className="page">
-      {legacyImport.status === 'done' && legacyImport.imported > 0 && (
-        <div className="banner info">
-          <span>📦</span>
-          <span>
-            Перенесли {legacyImport.imported}{' '}
-            {plural(legacyImport.imported, 'дело', 'дела', 'дел')} из прежней версии. Они попали
-            в самооценку — в общий рейтинг идёт только подтверждённая карма.
-          </span>
-        </div>
-      )}
-
       {profile.firstName && (
         <div className="hint" style={{ padding: '0 4px' }}>
           Привет, {profile.firstName} 👋
@@ -59,12 +47,6 @@ export default function HomePage() {
       <section className="card">
         <div className="hint">Подтверждённая карма</div>
         <div className={`karma-total${bump ? ' bump' : ''}`}>{profile.karmaTotal}</div>
-
-        {profile.karmaSelfTotal > 0 && (
-          <div className="hint" style={{ marginTop: 4 }}>
-            Самооценка из прежней версии: {profile.karmaSelfTotal}
-          </div>
-        )}
 
         <div className="row" style={{ marginTop: 16, marginBottom: 8 }}>
           <span className="level-title">

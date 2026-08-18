@@ -11,8 +11,7 @@ export type DeedStatus =
   | 'partially_reviewed'
   | 'approved'
   | 'rejected'
-  | 'expired'
-  | 'legacy_unverified';
+  | 'expired';
 
 export interface DeedRow {
   id: string;

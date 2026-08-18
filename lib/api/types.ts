@@ -11,8 +11,7 @@ export type DeedStatus =
   | 'partially_reviewed'
   | 'approved'
   | 'rejected'
-  | 'expired'
-  | 'legacy_unverified';
+  | 'expired';
 
 export type SlotState = 'none' | 'waiting' | 'expired' | 'reviewed';
 
@@ -47,10 +46,8 @@ export interface Profile {
   username: string | null;
   firstName: string | null;
   photoUrl: string | null;
-  /** подтверждённая ревью — только она идёт в лидерборды */
+  /** подтверждённая ревью — другой кармы не бывает */
   karmaTotal: number;
-  /** самооценённая, перенесённая из V1 */
-  karmaSelfTotal: number;
   level: number;
   levelTitle: string;
   currentLevelXp: number;
@@ -61,13 +58,12 @@ export interface Profile {
   /** в порядке DEED_CATEGORIES */
   categoryCounts: number[];
   badges: Badge[];
-  legacyImported: boolean;
 }
 
 export interface MeResponse {
   profile: Profile;
   inviteLink: string | null;
-  counts: { pending: number; approved: number; legacy: number };
+  counts: { pending: number; approved: number };
 }
 
 export interface DeedsResponse {
@@ -123,15 +119,6 @@ export interface FriendProfileResponse {
     longestStreak: number;
     badges: Badge[];
   };
-}
-
-export interface ImportLegacyResponse {
-  imported: number;
-  skipped?: number;
-  karmaSelfTotal?: number;
-  newBadges?: Badge[];
-  profile: Profile;
-  alreadyImported: boolean;
 }
 
 /** D1 отдаёт время строкой `YYYY-MM-DD HH:MM:SS` в UTC. */

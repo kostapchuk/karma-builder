@@ -13,7 +13,6 @@ import { maxUsers, type Env } from './env';
 import { HttpError, corsHeaders, errorResponse, json, notFound, unauthorized } from './http';
 import { createDeed, getDeed, listDeeds, sendReview } from './routes/deeds';
 import { addFriend } from './routes/friends';
-import { importLegacy } from './routes/importLegacy';
 import { friendProfile, friendsLeaderboard, globalLeaderboard } from './routes/leaderboard';
 import { getMe } from './routes/me';
 import { getReview, submitReview } from './routes/review';
@@ -103,10 +102,6 @@ async function route(request: Request, env: Env): Promise<Response> {
 
   if (pathname === '/api/friends/add' && method === 'POST') {
     return addFriend(request, env, await authenticate(request, env));
-  }
-
-  if (pathname === '/api/import/legacy' && method === 'POST') {
-    return importLegacy(request, env, await authenticate(request, env));
   }
 
   throw notFound('route_not_found');

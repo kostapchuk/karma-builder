@@ -2,7 +2,7 @@
  * Zustand — источник для UI, D1 за Worker'ом — источник правды.
  *
  * Отличие от V1: карма больше не растёт в момент записи дела. Дело создаётся
- * со статусом `pending` и ждёт двух рецензентов, поэтому «праздновать» на экране
+ * со статусом `pending` и ждёт оценки посторонних, поэтому «праздновать» на экране
  * добавления нечего — уровень и бейджи приезжают позже, при обновлении профиля.
  * Отсюда `celebration`: то, что случилось между запусками, показывается на Home.
  */
@@ -14,7 +14,6 @@ import { create } from 'zustand';
 import { ApiError, api } from '../api/client';
 import type { DeedView, LeaderboardEntry, Profile, ReviewLink } from '../api/types';
 import type { Badge, DeedCategory, EffortLevel } from '../karma/types';
-import { readLegacySnapshot } from '../storage/legacy';
 import { initDataStartParam } from '@telegram-apps/sdk-react';
 
 export type HydrationStatus = 'idle' | 'loading' | 'ready' | 'error';
@@ -30,20 +29,14 @@ export interface AddDeedOutcome {
   newBadges: Badge[];
 }
 
-export interface LegacyImportState {
-  status: 'idle' | 'running' | 'done' | 'failed';
-  imported: number;
-}
-
 interface AppState {
   status: HydrationStatus;
   error: string | null;
 
   profile: Profile | null;
   inviteLink: string | null;
-  counts: { pending: number; approved: number; legacy: number };
+  counts: { pending: number; approved: number };
   deeds: DeedView[];
-  legacyImport: LegacyImportState;
   celebration: Celebration | null;
 
   friends: LeaderboardEntry[] | null;
@@ -117,9 +110,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   error: null,
   profile: null,
   inviteLink: null,
-  counts: { pending: 0, approved: 0, legacy: 0 },
+  counts: { pending: 0, approved: 0 },
   deeds: [],
-  legacyImport: { status: 'idle', imported: 0 },
   celebration: null,
   friends: null,
   global: null,
@@ -145,7 +137,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       // Дальше — фоновые задачи. Они не должны мешать экрану: сорвались —
       // приложение всё равно работает.
       void adoptFriendFromDeepLink();
-      void importLegacyOnce(me.profile, set);
     } catch (error) {
       console.error('[store] hydrate failed', error);
       set({ status: 'error', error: message(error) });
@@ -222,37 +213,3 @@ async function adoptFriendFromDeepLink(): Promise<void> {
   }
 }
 
-/**
- * Перенос истории V1. Запускается ровно один раз в жизни аккаунта: решает
- * серверный флаг `legacy_imported_at`, а не что-либо на устройстве — иначе
- * пользователь со вторым телефоном импортировал бы всё заново.
- */
-async function importLegacyOnce(
-  profile: Profile,
-  set: (partial: Partial<AppState>) => void,
-): Promise<void> {
-  if (profile.legacyImported) return;
-
-  set({ legacyImport: { status: 'running', imported: 0 } });
-  try {
-    const snapshot = await readLegacySnapshot();
-    if (snapshot.deeds.length === 0) {
-      set({ legacyImport: { status: 'idle', imported: 0 } });
-      return;
-    }
-
-    const result = await api.importLegacy(snapshot.deeds);
-    // Перенесённые дела должны появиться в истории сразу, а не со следующего
-    // запуска: пользователь только что видел их в прежней версии.
-    const history = await api.deeds({ limit: 50 }).catch(() => null);
-
-    set({
-      legacyImport: { status: 'done', imported: result.imported },
-      profile: result.profile,
-      ...(history ? { deeds: history.deeds } : {}),
-    });
-  } catch (error) {
-    console.error('[store] legacy import failed', error);
-    set({ legacyImport: { status: 'failed', imported: 0 } });
-  }
-}

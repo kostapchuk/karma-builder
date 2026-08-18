@@ -16,6 +16,3 @@ export function randomId(size: number): string {
 export const reviewToken = () => randomId(32);
 
 export const deedId = () => randomId(16);
-
-/** Импортированное дело: id детерминирован, поэтому повторный импорт не двоит. */
-export const legacyDeedId = (userId: number, v1Id: string) => `l${userId}-${v1Id}`;

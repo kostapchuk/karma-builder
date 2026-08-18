@@ -26,28 +26,16 @@ export default function ProfilePage() {
       </h1>
 
       {/*
-        Две шкалы кармы — центральное решение миграции. Подтверждённая растёт
-        только через ревью и идёт в рейтинг; самооценка перенесена из V1
-        как есть, чтобы прогресс не обнулился, но на рейтинг не влияет.
+        Шкала одна: карма существует только подтверждённой. Записанное, но не
+        оценённое дело баллов не даёт — в этом весь V2.
       */}
       <section className="card">
-        <div className="row">
-          <span>
-            <div className="hint">Подтверждено</div>
-            <div className="karma-total" style={{ fontSize: 34 }}>
-              {profile.karmaTotal}
-            </div>
-          </span>
-          <span className="spacer" />
-          <span style={{ textAlign: 'right' }}>
-            <div className="hint">Самооценка</div>
-            <div className="karma-total" style={{ fontSize: 34, opacity: 0.55 }}>
-              {profile.karmaSelfTotal}
-            </div>
-          </span>
+        <div className="hint">Подтверждённая карма</div>
+        <div className="karma-total" style={{ fontSize: 34 }}>
+          {profile.karmaTotal}
         </div>
         <div className="hint" style={{ marginTop: 10 }}>
-          В лидерборд идёт только подтверждённая карма — та, что оценили двое.
+          Баллы начисляет не автор: их ставит тот, кому вы отправили ссылку.
         </div>
       </section>
 
@@ -139,7 +127,6 @@ export default function ProfilePage() {
           <div className="hint">
             {profile.deedCount} {plural(profile.deedCount, 'дело', 'дела', 'дел')} всего ·{' '}
             {counts.approved} подтверждено · {counts.pending} на ревью
-            {counts.legacy > 0 && ` · ${counts.legacy} перенесено из прежней версии`}
           </div>
           <div className="hint" style={{ marginTop: 6 }}>
             Дела хранятся на сервере и доступны со всех ваших устройств.

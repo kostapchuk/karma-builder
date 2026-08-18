@@ -61,8 +61,8 @@ const reviewersFor = (author: string) =>
   [BORIS, VERA, ANNA].filter((who) => who !== author).slice(0, REVIEWER_SLOTS.length);
 
 const karmaOf = (telegramId: number) =>
-  sqlRows<{ karma_total: number; karma_self_total: number }>(
-    `SELECT karma_total, karma_self_total FROM users WHERE telegram_id = ${telegramId}`,
+  sqlRows<{ karma_total: number }>(
+    `SELECT karma_total FROM users WHERE telegram_id = ${telegramId}`,
   )[0];
 
 test('приватный маршрут без initData и с подделанной подписью отвечает 401', async () => {
@@ -391,81 +391,6 @@ test('история фильтруется по статусу', async () => {
   );
   assert.ok(approved.body.deeds.every((d) => d.status === 'approved'));
   assert.ok(approved.body.deeds.length < all.body.deeds.length);
-});
-
-test('импорт V1 идёт в отдельную шкалу и не двигает лидерборд', async () => {
-  const before = karmaOf(1001);
-  const rankBefore = await api<{ me: { rank: number } }>('GET', '/api/leaderboard/global', {
-    initData: ANNA,
-  });
-
-  const imported = await api<{ imported: number; karmaSelfTotal: number; alreadyImported: boolean }>(
-    'POST',
-    '/api/import/legacy',
-    {
-      initData: ANNA,
-      body: {
-        deeds: [
-          { id: 'v1aaa', description: 'Покормил уличных котов', category: 'animal_care', effortLevel: 1, karmaPoints: 10, createdAt: 1_755_000_000, localDate: '2026-08-12' },
-          { id: 'v1bbb', description: 'Убрал мусор в парке', category: 'environment', effortLevel: 2, karmaPoints: 16, createdAt: 1_755_100_000, localDate: '2026-08-13' },
-          { id: 'v1ccc', description: 'Донат в фонд', category: 'donation', effortLevel: 1, karmaPoints: 12, createdAt: 1_755_200_000, localDate: '2026-08-14' },
-        ],
-      },
-    },
-  );
-
-  assert.equal(imported.status, 200);
-  assert.equal(imported.body.imported, 3);
-  assert.equal(imported.body.karmaSelfTotal, 38);
-
-  const after = karmaOf(1001);
-  assert.equal(after.karma_total, before.karma_total, 'подтверждённая карма не меняется импортом');
-  assert.equal(after.karma_self_total, 38);
-
-  const rankAfter = await api<{ me: { rank: number } }>('GET', '/api/leaderboard/global', {
-    initData: ANNA,
-  });
-  assert.equal(rankAfter.body.me.rank, rankBefore.body.me.rank);
-
-  const legacy = await api<{ deeds: { status: string; finalScore: number | null }[] }>(
-    'GET',
-    '/api/deeds?status=legacy_unverified',
-    { initData: ANNA },
-  );
-  assert.equal(legacy.body.deeds.length, 3);
-  assert.ok(legacy.body.deeds.every((d) => d.finalScore === null));
-});
-
-test('повторный импорт ничего не дублирует', async () => {
-  const repeat = await api<{ imported: number; alreadyImported: boolean }>('POST', '/api/import/legacy', {
-    initData: ANNA,
-    body: {
-      deeds: [
-        { id: 'v1aaa', description: 'Покормил уличных котов', category: 'animal_care', effortLevel: 1, karmaPoints: 10, createdAt: 1_755_000_000, localDate: '2026-08-12' },
-      ],
-    },
-  });
-
-  assert.equal(repeat.body.alreadyImported, true);
-  assert.equal(repeat.body.imported, 0);
-  assert.equal(karmaOf(1001).karma_self_total, 38);
-
-  const rows = sqlRows<{ n: number }>(
-    "SELECT COUNT(*) AS n FROM deeds WHERE status = 'legacy_unverified'",
-  );
-  assert.equal(rows[0].n, 3);
-});
-
-test('legacy-дело на ревью не отправишь', async () => {
-  const legacy = sqlRows<{ id: string }>(
-    "SELECT id FROM deeds WHERE status = 'legacy_unverified' LIMIT 1",
-  )[0];
-
-  const response = await api<{ error: string }>('POST', `/api/deeds/${legacy.id}/send-review`, {
-    initData: ANNA,
-  });
-  assert.equal(response.status, 409);
-  assert.equal(response.body.error, 'deed_legacy_not_reviewable');
 });
 
 test('лидерборды: порядок по подтверждённой карме, друзья отфильтрованы', async () => {

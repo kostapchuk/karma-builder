@@ -15,7 +15,6 @@ const STATUS_FILTERS: { code: DeedStatus | null; label: string }[] = [
   { code: null, label: 'Все' },
   { code: 'approved', label: 'Подтверждённые' },
   { code: 'pending', label: 'На ревью' },
-  { code: 'legacy_unverified', label: 'Из прежней версии' },
 ];
 
 export default function HistoryPage() {
