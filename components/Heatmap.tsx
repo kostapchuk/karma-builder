@@ -6,10 +6,16 @@ import type { DeedView } from '@/lib/api/types';
 import { toDateKey } from '@/lib/karma/streak';
 import { plural } from '@/lib/ui/catalog';
 
-const WEEKS = 26;
+const WEEKS = 13;
 const DAYS = WEEKS * 7;
 
-/** Календарь активности как у GitHub-контрибуций — за последние полгода. */
+/**
+ * Подпись к календарю. Живёт вплотную к WEEKS: раньше заголовок был отдельной
+ * строкой в истории и обещал полгода, когда сетка уже показывала другое.
+ */
+export const HEATMAP_PERIOD = 'за 3 месяца';
+
+/** Календарь активности как у GitHub-контрибуций — за последние три месяца. */
 export function Heatmap({ deeds }: { deeds: DeedView[] }) {
   const cells = useMemo(() => {
     const counts = new Map<string, number>();

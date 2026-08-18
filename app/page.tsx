@@ -53,9 +53,15 @@ export default function HomePage() {
             Ур. {profile.level} · {profile.levelTitle}
           </span>
           <span className="spacer" />
-          <span className="hint">
-            до {profile.level + 1}: {profile.xpToNextLevel}
-          </span>
+          {/*
+            Раньше здесь было «до 2: 20» — две цифры подряд без единиц, и какая
+            из них уровень, а какая карма, приходилось угадывать.
+          */}
+          {profile.xpToNextLevel > 0 && (
+            <span className="hint">
+              ещё {profile.xpToNextLevel} до ур. {profile.level + 1}
+            </span>
+          )}
         </div>
         <div className="progress">
           <i style={{ width: `${Math.round(progress * 100)}%` }} />

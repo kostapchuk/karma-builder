@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 
 import { DeedList } from '@/components/DeedList';
-import { Heatmap } from '@/components/Heatmap';
+import { HEATMAP_PERIOD, Heatmap } from '@/components/Heatmap';
 import type { DeedStatus } from '@/lib/api/types';
 import { DEED_CATEGORIES } from '@/lib/karma/scoring';
 import type { DeedCategory } from '@/lib/karma/types';
@@ -53,7 +53,7 @@ export default function HistoryPage() {
       {deeds.length > 0 && (
         <section className="card">
           <div className="section-title" style={{ margin: '0 0 10px' }}>
-            Активность за полгода
+            Активность {HEATMAP_PERIOD}
           </div>
           <Heatmap deeds={deeds} />
           <div className="hint" style={{ marginTop: 10 }}>
