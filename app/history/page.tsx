@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
 import { DeedList } from '@/components/DeedList';
@@ -18,6 +19,7 @@ const STATUS_FILTERS: { code: DeedStatus | null; label: string }[] = [
 ];
 
 export default function HistoryPage() {
+  const router = useRouter();
   const deeds = useAppStore((s) => s.deeds);
 
   const [category, setCategory] = useState<DeedCategory | null>(null);
@@ -105,7 +107,11 @@ export default function HistoryPage() {
         {visible.length} {plural(visible.length, 'дело', 'дела', 'дел')}
       </div>
 
-      <DeedList deeds={visible} empty="Под эти фильтры ничего не подошло." />
+      <DeedList
+        deeds={visible}
+        empty="Под эти фильтры ничего не подошло."
+        onSelect={(deed) => router.push(`/deed/?id=${deed.id}`)}
+      />
     </main>
   );
 }

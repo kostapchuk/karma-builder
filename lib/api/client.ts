@@ -15,6 +15,7 @@ import { devInitData } from '../telegram/init';
 
 import type {
   CreateDeedResponse,
+  DeedView,
   DeedsResponse,
   FriendProfileResponse,
   LeaderboardResponse,
@@ -107,6 +108,10 @@ export const api = {
     category: DeedCategory;
     effortLevel: EffortLevel;
   }) => request<CreateDeedResponse>('POST', '/api/deeds', { ...input, localDate: todayKey() }),
+
+  // Одно дело по id: экран подробностей может открыться по прямой ссылке,
+  // когда история в сторе ещё не загружена или дело в неё не попало.
+  deed: (id: string) => request<{ deed: DeedView }>('GET', `/api/deeds/${id}`),
 
   sendReview: (deedId: string) =>
     request<SendReviewResponse>('POST', `/api/deeds/${deedId}/send-review`),

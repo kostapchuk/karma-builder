@@ -115,7 +115,10 @@ export default function HomePage() {
             Вся история
           </Link>
         </div>
-        <DeedList deeds={deeds.slice(0, RECENT_LIMIT)} />
+        <DeedList
+          deeds={deeds.slice(0, RECENT_LIMIT)}
+          onSelect={(deed) => router.push(`/deed/?id=${deed.id}`)}
+        />
       </section>
 
       {/*

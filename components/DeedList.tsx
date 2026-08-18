@@ -1,9 +1,8 @@
 'use client';
 
 import type { DeedView } from '@/lib/api/types';
-import { sqlToEpoch } from '@/lib/api/types';
 import { REVIEWER_SLOTS } from '@/lib/karma/review';
-import { CATEGORY_META, EFFORT_META, formatDeedTime } from '@/lib/ui/catalog';
+import { CATEGORY_META } from '@/lib/ui/catalog';
 
 /**
  * Строка дела. В V2 у неё появился статус: балл больше не начисляется в момент
@@ -68,12 +67,13 @@ export function DeedList({ deeds, onSelect, empty }: Props) {
             {...(onSelect ? { type: 'button' as const, onClick: () => onSelect(deed) } : {})}
           >
             <span className="icon">{meta.icon}</span>
+            {/*
+              В строке только название, статус и баллы. Категория, усилие и
+              время переехали на экран дела: в списке они превращали каждую
+              строку в три яруса мелкого текста и мешали читать главное.
+            */}
             <span className="body">
               <b>{deed.description || meta.label}</b>
-              <span className="meta">
-                {meta.label} · {EFFORT_META[deed.effortLevel].label} ·{' '}
-                {formatDeedTime(sqlToEpoch(deed.createdAt))}
-              </span>
               <span className={`pill ${status.tone}`}>{status.label}</span>
             </span>
             <span className={`points${approved ? '' : ' muted'}`}>

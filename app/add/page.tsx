@@ -16,6 +16,7 @@ import {
 import type { DeedCategory, EffortLevel } from '@/lib/karma/types';
 import { useAppStore } from '@/lib/store/useAppStore';
 import { hapticImpact, hapticSelection, hapticSuccess } from '@/lib/telegram/haptics';
+import { REVIEWER_SLOTS } from '@/lib/karma/review';
 import { CATEGORY_META, EFFORT_META } from '@/lib/ui/catalog';
 
 export default function AddDeedPage() {
@@ -69,9 +70,18 @@ export default function AddDeedPage() {
         <h1 className="karma-total" style={{ fontSize: 24 }}>
           Дело записано
         </h1>
+        {/*
+          Текст дважды устаревал: обещал двух проверяющих, когда остался один,
+          и «браузер без регистрации», хотя проверка переехала внутрь Mini App
+          и Telegram теперь как раз нужен. Число берётся из REVIEWER_SLOTS,
+          чтобы не разъезжаться снова.
+        */}
         <p className="hint" style={{ padding: '0 4px', marginTop: -8 }}>
-          Карма придёт, когда дело оценят два человека. Отправьте им ссылки — открывать
-          Telegram и регистрироваться не нужно, ссылка работает в любом браузере.
+          {REVIEWER_SLOTS.length === 1
+            ? 'Карма придёт, когда дело проверит кто-то другой.'
+            : `Карма придёт, когда дело проверят ${REVIEWER_SLOTS.length} человека.`}{' '}
+          {REVIEWER_SLOTS.length === 1 ? 'Отправьте ссылку' : 'Отправьте им ссылки'} — она
+          откроется в Telegram. Своё дело проверить нельзя.
         </p>
 
         <ShareReviewLinks deed={created} />

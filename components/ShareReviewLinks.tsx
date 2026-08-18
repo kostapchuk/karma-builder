@@ -67,7 +67,10 @@ export function ShareReviewLinks({ deed: initial }: { deed: DeedView }) {
 
   return (
     <section>
-      <h2 className="section-title">{many ? 'Проверяющие' : 'Проверяющий'}</h2>
+      {/* При одном слоте заголовок и подпись строки совпадали слово в слово:
+          «ПРОВЕРЯЮЩИЙ» и сразу «Проверяющий». Заголовок называет раздел,
+          строка — человека. */}
+      <h2 className="section-title">{many ? 'Проверяющие' : 'Проверка'}</h2>
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {deed.slots.map((slot) => (
           <div className="slot" key={slot.slot}>
