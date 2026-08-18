@@ -21,7 +21,13 @@ const WAITING_LABEL =
 
 export const STATUS_META: Record<DeedView['status'], { label: string; tone: 'wait' | 'done' | 'muted' }> = {
   pending: { label: WAITING_LABEL, tone: 'wait' },
-  partially_reviewed: { label: `Оценил один из ${NEEDED}`, tone: 'wait' },
+  // При одном рецензенте «оценил один из 1» — бессмыслица: такое дело уже
+  // подтверждено. Статус остаётся достижимым только для дел, заведённых, когда
+  // слотов было два, поэтому подпись должна быть осмысленной в обоих случаях.
+  partially_reviewed: {
+    label: NEEDED === 1 ? WAITING_LABEL : `Оценил один из ${NEEDED}`,
+    tone: 'wait',
+  },
   approved: { label: 'Подтверждено', tone: 'done' },
   rejected: { label: 'Отклонено', tone: 'muted' },
   expired: { label: NEEDED === 1 ? 'Ссылка истекла' : 'Ссылки истекли', tone: 'muted' },
@@ -60,7 +66,7 @@ export function DeedList({ deeds, onSelect, empty }: Props) {
             <span className="icon">{meta.icon}</span>
             <span className="body">
               <b>{deed.description || meta.label}</b>
-              <span>
+              <span className="meta">
                 {meta.label} · {EFFORT_META[deed.effortLevel].label} ·{' '}
                 {formatDeedTime(sqlToEpoch(deed.createdAt))}
               </span>

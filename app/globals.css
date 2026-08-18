@@ -276,6 +276,12 @@ a {
   color: var(--hint);
 }
 
+/* Строка «категория · усилие · время» — отдельным рядом. Без этого она и
+   плашка статуса оба inline и слипались: «Сегодня, 08:20Подтверждено». */
+.deed .body .meta {
+  display: block;
+}
+
 .deed .points {
   font-weight: 600;
   color: var(--accent);

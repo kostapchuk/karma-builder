@@ -15,9 +15,9 @@ export const CATEGORY_META: Record<DeedCategory, { label: string; icon: string }
 };
 
 export const EFFORT_META: Record<EffortLevel, { label: string; hint: string }> = {
-  1: { label: 'Small', hint: 'до 15 минут' },
-  2: { label: 'Medium', hint: 'около часа' },
-  3: { label: 'Large', hint: 'значимое время' },
+  1: { label: 'Немного', hint: 'до 15 минут' },
+  2: { label: 'Средне', hint: 'около часа' },
+  3: { label: 'Много', hint: 'значимое время' },
 };
 
 const RU_MONTHS = [
