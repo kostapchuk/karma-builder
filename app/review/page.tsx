@@ -12,12 +12,12 @@ import { plural } from '@/lib/ui/catalog';
 /**
  * «На ревью» — экран, которого в V1 не было и быть не могло.
  *
- * Здесь живут дела между «записал» и «подтвердили»: видно, кто из рецензентов
+ * Здесь живут дела между «записал» и «подтвердили»: видно, кто из проверяющих
  * ответил, и отсюда же перевыпускается истёкшая ссылка.
  */
 export default function ReviewPage() {
   const deeds = useAppStore((s) => s.deeds);
-  const hydrate = useAppStore((s) => s.hydrate);
+  const refreshStore = useAppStore((s) => s.refresh);
   const [openId, setOpenId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -29,7 +29,7 @@ export default function ReviewPage() {
   async function refresh() {
     setRefreshing(true);
     try {
-      await hydrate(true);
+      await refreshStore();
     } finally {
       setRefreshing(false);
     }

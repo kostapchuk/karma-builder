@@ -133,7 +133,7 @@ export function displayScore(deed: DeedView): number {
   return deed.finalScore ?? deed.baseScore;
 }
 
-/** Дело чужими глазами: то, что видит рецензент, придя по ссылке. */
+/** Дело чужими глазами: то, что видит проверяющий, придя по ссылке. */
 /** Сводка по приглашённым: их всего, дошедших до подтверждения, и что принесли. */
 export interface ReferralSummary {
   invited: number;

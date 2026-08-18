@@ -116,7 +116,7 @@ export const api = {
   sendReview: (deedId: string) =>
     request<SendReviewResponse>('POST', `/api/deeds/${deedId}/send-review`),
 
-  // Ревью тоже требует initData: рецензент опознан, иначе автор подтверждал бы
+  // Ревью тоже требует initData: проверяющий опознан, иначе автор подтверждал бы
   // собственные дела сам.
   reviewPage: (token: string) => request<ReviewPageResponse>('GET', `/api/review/${token}`),
 

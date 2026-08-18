@@ -51,6 +51,7 @@ interface AppState {
   globalMeRank: number | null;
 
   hydrate(force?: boolean): Promise<void>;
+  refresh(): Promise<void>;
   addDeed(input: {
     description: string;
     category: DeedCategory;
@@ -66,7 +67,7 @@ const SEEN_BADGES_KEY = 'kb:seen-badges';
 
 /**
  * Что изменилось с прошлого визита. Уровень и бейджи теперь приходят от
- * сервера в любой момент — «когда рецензенты дошли до дела», — поэтому отметку
+ * сервера в любой момент — «когда проверяющие дошли до дела», — поэтому отметку
  * о показанном держим на устройстве, а не выводим из ответа.
  */
 function pickCelebration(profile: Profile): Celebration | null {
@@ -149,6 +150,36 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch (error) {
       console.error('[store] hydrate failed', error);
       set({ status: 'error', error: message(error) });
+    }
+  },
+
+  /**
+   * Тихое обновление: то же, что hydrate, но без переключения `status`.
+   *
+   * Нужно, потому что `hydrate` ставит `loading`, а AppShell на этом статусе
+   * подменяет весь экран заглушкой «Загружаем карму…». Для возврата
+   * в приложение и кнопки «Обновить» это означало бы мигание всего интерфейса
+   * ради данных, которые чаще всего не изменились.
+   *
+   * Сбой сети тоже проглатывается: показать прежние данные честнее, чем
+   * заменить рабочий экран ошибкой из-за фонового запроса.
+   */
+  async refresh() {
+    if (get().status !== 'ready') return;
+    try {
+      const [me, history] = await Promise.all([api.me(), api.deeds({ limit: 50 })]);
+      set({
+        profile: me.profile,
+        inviteLink: me.inviteLink,
+        counts: me.counts,
+        referrals: me.referrals,
+        deeds: history.deeds,
+        // Дело могли подтвердить, пока приложение было свёрнуто, — праздновать
+        // есть что. Уже показанное не затираем, если нового не случилось.
+        celebration: pickCelebration(me.profile) ?? get().celebration,
+      });
+    } catch (error) {
+      console.warn('[store] refresh failed', error);
     }
   },
 

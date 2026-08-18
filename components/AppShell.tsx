@@ -38,6 +38,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useBackButton();
   useReviewDeepLink(booted);
+  useRefreshOnReturn(booted);
 
   if (!booted || status === 'idle' || status === 'loading') {
     return (
@@ -72,6 +73,49 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {children}
     </>
   );
+}
+
+/**
+ * Не чаще одного фонового обновления в этот промежуток.
+ *
+ * Быстрое переключение туда-обратно иначе слало бы запрос на каждое движение,
+ * а дело за пару секунд подтвердить не успеют.
+ */
+const REFRESH_COOLDOWN_MS = 5000;
+
+/**
+ * Данные подтягиваются заново, когда приложение снова стало видимым.
+ *
+ * Иначе свежесть держалась только на запуске и кнопке «Обновить»: Telegram
+ * часто не перезагружает Mini App при возврате, а держит webview живым — и
+ * приложение продолжало показывать то, что было до сворачивания. Обновление
+ * тихое (`refresh`, а не `hydrate`), поэтому экран не мигает заглушкой.
+ */
+function useRefreshOnReturn(booted: boolean) {
+  const refresh = useAppStore((s) => s.refresh);
+
+  useEffect(() => {
+    if (!booted) return;
+    let last = 0;
+
+    const maybeRefresh = () => {
+      if (document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      if (now - last < REFRESH_COOLDOWN_MS) return;
+      last = now;
+      void refresh();
+    };
+
+    // Два входа на один обработчик. visibilitychange — основной, но клиенты
+    // Telegram ведут себя по-разному, и там, где событие не придёт, возврат
+    // поймает focus. Общий cooldown не даёт им сработать дважды подряд.
+    document.addEventListener('visibilitychange', maybeRefresh);
+    window.addEventListener('focus', maybeRefresh);
+    return () => {
+      document.removeEventListener('visibilitychange', maybeRefresh);
+      window.removeEventListener('focus', maybeRefresh);
+    };
+  }, [booted, refresh]);
 }
 
 /**

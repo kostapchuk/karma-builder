@@ -47,7 +47,7 @@ async function route(request: Request, env: Env): Promise<Response> {
 
   if (pathname === '/api/health') return json({ ok: true });
 
-  // Прежний адрес страницы рецензента. Сама страница переехала в Mini App, но
+  // Прежний адрес страницы проверяющего. Сама страница переехала в Mini App, но
   // ссылки этого вида уже разосланы, и кто-то вставит их в обычный браузер —
   // отправляем в Telegram вместо мёртвого 404.
   if (segments[0] === 'r' && segments[1] && segments.length === 2) {
@@ -60,7 +60,7 @@ async function route(request: Request, env: Env): Promise<Response> {
   // --- ревью: только из Mini App --------------------------------------------
   // Раньше маршрут был публичным: страница открывалась в любом браузере без
   // логина, и сервер не знал, кто ставит балл. Значит, автор мог подтвердить
-  // собственное дело сам. Теперь рецензент — такой же авторизованный юзер.
+  // собственное дело сам. Теперь проверяющий — такой же авторизованный юзер.
   if (segments[0] === 'api' && segments[1] === 'review' && segments[2]) {
     if (method === 'GET') return getReview(env, await authenticate(request, env), segments[2]);
     if (method === 'POST') {

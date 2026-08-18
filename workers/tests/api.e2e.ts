@@ -57,7 +57,7 @@ async function deedWithLinks(initData: string, overrides: Record<string, unknown
   return { id: created.body.deed.id, baseScore: created.body.deed.baseScore, tokens, links: sent.body.links };
 }
 
-/** Рецензенты по числу слотов. Автор в этот список не попадает никогда. */
+/** Проверяющие по числу слотов. Автор в этот список не попадает никогда. */
 const reviewersFor = (author: string) =>
   [BORIS, VERA, ANNA].filter((who) => who !== author).slice(0, REVIEWER_SLOTS.length);
 
@@ -141,7 +141,7 @@ test('ревью посторонних: итог — среднее оцено�
   const deed = await deedWithLinks(ANNA);
   assert.equal(deed.tokens.length, REVIEWER_SLOTS.length);
 
-  // Оценки берём из этого набора по числу слотов: при двух рецензентах
+  // Оценки берём из этого набора по числу слотов: при двух проверяющих
   // получится среднее 25, при одном — ровно 20.
   const scores = [20, 30].slice(0, REVIEWER_SLOTS.length);
   const expected = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
@@ -286,7 +286,7 @@ test(
   'один человек не оценивает одно дело дважды',
   {
     // Ровно тот случай, с которого началась переделка: слотов было два, и один
-    // человек прошёл по обеим ссылкам. При одном рецензенте воспроизвести это
+    // человек прошёл по обеим ссылкам. При одном проверяющем воспроизвести это
     // нечем — первая же оценка подтверждает дело, и раньше срабатывает
     // «дело уже подтверждено». Проверка нужна на случай возврата к двум.
     skip: REVIEWER_SLOTS.length < 2 ? 'нужен второй слот: при одном ссылка всего одна' : false,

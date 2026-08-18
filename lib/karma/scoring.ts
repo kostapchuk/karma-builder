@@ -51,7 +51,7 @@ export const DESCRIPTION_MAX_LENGTH = 140;
 
 /**
  * Текст не парсим: баллы = вес категории × множитель усилия.
- * В V2 это же число становится `base_score` — подсказкой рецензенту.
+ * В V2 это же число становится `base_score` — подсказкой проверяющему.
  */
 export function computeKarmaPoints(
   category: DeedCategory,

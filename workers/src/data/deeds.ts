@@ -69,7 +69,7 @@ export const isEffortLevel = (value: unknown): value is EffortLevel =>
 /**
  * Ссылка на ревью — deep-link в Mini App, а не адрес отдельной страницы.
  *
- * Telegram отдаёт `startapp` в initData, поэтому по такой ссылке рецензент
+ * Telegram отдаёт `startapp` в initData, поэтому по такой ссылке проверяющий
  * приходит уже опознанным: сервер видит его telegram_id и не даёт автору
  * подтвердить своё же дело. Префикс `r` отличает её от приглашения в друзья
  * (`f<id>`), а алфавит токена — те же символы, что Telegram допускает
