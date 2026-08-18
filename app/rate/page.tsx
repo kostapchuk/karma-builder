@@ -22,13 +22,13 @@ import { CATEGORY_META } from '@/lib/ui/catalog';
 const PROBLEM: Record<string, { emoji: string; text: string }> = {
   cannot_review_own_deed: {
     emoji: '🙃',
-    text: 'Это ваше собственное дело. Его оценивает кто-то другой — перешлите ссылку.',
+    text: 'Это ваше собственное дело. Его проверяет кто-то другой — перешлите ссылку.',
   },
   already_reviewed_by_you: {
     emoji: '✅',
-    text: 'Вы уже оценили это дело. Второй раз нельзя — в этом весь смысл проверки.',
+    text: 'Вы уже проверили это дело. Второй раз нельзя — в этом весь смысл проверки.',
   },
-  link_used: { emoji: '✅', text: 'По этой ссылке уже оценили.' },
+  link_used: { emoji: '✅', text: 'По этой ссылке уже проверили.' },
   link_expired: { emoji: '⌛', text: 'Ссылка прожила свой срок. Попросите автора выслать новую.' },
   link_revoked: { emoji: '🔗', text: 'Ссылка больше не действует — автор выпустил новую.' },
   deed_already_approved: { emoji: '🎉', text: 'Дело уже подтверждено. Спасибо!' },
@@ -87,7 +87,7 @@ export default function RatePage() {
   if (problem) {
     const view = PROBLEM[problem] ?? {
       emoji: '😕',
-      text: 'Не удалось открыть оценку. Попробуйте позже.',
+      text: 'Не удалось открыть проверку. Попробуйте позже.',
     };
     return (
       <main className="page">
@@ -107,7 +107,7 @@ export default function RatePage() {
       <main className="page">
         <div className="empty">
           <span className="emoji">🙏</span>
-          Спасибо за оценку!
+          Спасибо за проверку!
           {done.approved && done.finalScore !== null && (
             <p>Дело подтверждено на {done.finalScore} кармы.</p>
           )}
@@ -134,7 +134,7 @@ export default function RatePage() {
     <main className="page">
       <section className="card">
         <div className="hint">
-          {page.author.firstName ?? 'Кто-то'} просит оценить доброе дело
+          {page.author.firstName ?? 'Кто-то'} просит проверить доброе дело
         </div>
         <p style={{ fontSize: 18, margin: '10px 0 12px' }}>{page.deed.description}</p>
         <div className="hint">

@@ -84,7 +84,7 @@ export function ReviewScale({ value, max, anchors, baseScore, onChange }: Props)
   return (
     <section className="scale" aria-labelledby="scale-heading">
       <h2 id="scale-heading" className="section-title">
-        Ваша оценка
+        Ваш балл
       </h2>
 
       <div className="readout">
@@ -104,7 +104,7 @@ export function ReviewScale({ value, max, anchors, baseScore, onChange }: Props)
             value={value}
             onPointerDown={stopGlide}
             onChange={(event) => onChange(Number(event.target.value))}
-            aria-label={`Оценка дела от 0 до ${max}`}
+            aria-label={`Балл делу от 0 до ${max}`}
             aria-valuetext={`${value} из ${max}`}
           />
           <div className="handle" style={{ left: percent, background: color }} />

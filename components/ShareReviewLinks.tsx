@@ -67,12 +67,12 @@ export function ShareReviewLinks({ deed: initial }: { deed: DeedView }) {
 
   return (
     <section>
-      <h2 className="section-title">{many ? 'Рецензенты' : 'Рецензент'}</h2>
+      <h2 className="section-title">{many ? 'Проверяющие' : 'Проверяющий'}</h2>
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {deed.slots.map((slot) => (
           <div className="slot" key={slot.slot}>
             <div className="row">
-              <b>{many ? `Рецензент ${slot.slot}` : 'Рецензент'}</b>
+              <b>{many ? `Проверяющий ${slot.slot}` : 'Проверяющий'}</b>
               <span className="spacer" />
               <span className={`pill ${slot.state === 'reviewed' ? 'done' : slot.state === 'waiting' ? 'wait' : 'muted'}`}>
                 {SLOT_LABEL[slot.state]}
@@ -81,7 +81,7 @@ export function ShareReviewLinks({ deed: initial }: { deed: DeedView }) {
 
             {slot.state === 'reviewed' && (
               <div className="hint" style={{ marginTop: 6 }}>
-                Оценка: {slot.score}
+                Балл: {slot.score}
                 {slot.comment ? ` · «${slot.comment}»` : ''}
               </div>
             )}
@@ -122,7 +122,7 @@ export function ShareReviewLinks({ deed: initial }: { deed: DeedView }) {
 
 const SLOT_LABEL: Record<SlotView['state'], string> = {
   none: 'нет ссылки',
-  waiting: 'ждём оценку',
+  waiting: 'ждём проверки',
   expired: 'ссылка истекла',
-  reviewed: 'оценил',
+  reviewed: 'проверил',
 };

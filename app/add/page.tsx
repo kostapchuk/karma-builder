@@ -103,7 +103,7 @@ export default function AddDeedPage() {
           onChange={(e) => setDescription(e.target.value)}
         />
         <div className="hint" style={{ textAlign: 'right', marginTop: 4 }}>
-          {description.length}/{DESCRIPTION_MAX_LENGTH} · это увидят рецензенты
+          {description.length}/{DESCRIPTION_MAX_LENGTH} · это увидят проверяющие
         </div>
       </div>
 
@@ -152,10 +152,10 @@ export default function AddDeedPage() {
         </div>
       </div>
 
-      {/* «~» вместо «+»: это предложение системы рецензентам, а не начисление. */}
+      {/* «~» вместо «+»: это предложение системы проверяющим, а не начисление. */}
       <div className="preview">
         <b>~{points}</b>
-        <span className="hint">предложим рецензентам</span>
+        <span className="hint">предложим проверяющим</span>
       </div>
 
       {!nativeButton && (

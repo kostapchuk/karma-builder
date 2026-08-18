@@ -14,7 +14,7 @@ import { CATEGORY_META, plural } from '@/lib/ui/catalog';
 const STATUS_FILTERS: { code: DeedStatus | null; label: string }[] = [
   { code: null, label: 'Все' },
   { code: 'approved', label: 'Подтверждённые' },
-  { code: 'pending', label: 'На ревью' },
+  { code: 'pending', label: 'На проверке' },
 ];
 
 export default function HistoryPage() {

@@ -17,7 +17,11 @@ import { CATEGORY_META, EFFORT_META, formatDeedTime } from '@/lib/ui/catalog';
 const NEEDED = REVIEWER_SLOTS.length;
 
 const WAITING_LABEL =
-  NEEDED === 1 ? 'Ждёт оценки' : NEEDED === 2 ? 'Ждёт двух оценок' : `Ждёт оценок: ${NEEDED}`;
+  NEEDED === 1
+    ? 'Ждёт проверки'
+    : NEEDED === 2
+      ? 'Ждёт двух проверок'
+      : `Ждёт проверок: ${NEEDED}`;
 
 export const STATUS_META: Record<DeedView['status'], { label: string; tone: 'wait' | 'done' | 'muted' }> = {
   pending: { label: WAITING_LABEL, tone: 'wait' },
@@ -25,7 +29,7 @@ export const STATUS_META: Record<DeedView['status'], { label: string; tone: 'wai
   // подтверждено. Статус остаётся достижимым только для дел, заведённых, когда
   // слотов было два, поэтому подпись должна быть осмысленной в обоих случаях.
   partially_reviewed: {
-    label: NEEDED === 1 ? WAITING_LABEL : `Оценил один из ${NEEDED}`,
+    label: NEEDED === 1 ? WAITING_LABEL : `Проверил один из ${NEEDED}`,
     tone: 'wait',
   },
   approved: { label: 'Подтверждено', tone: 'done' },
@@ -73,7 +77,7 @@ export function DeedList({ deeds, onSelect, empty }: Props) {
               <span className={`pill ${status.tone}`}>{status.label}</span>
             </span>
             <span className={`points${approved ? '' : ' muted'}`}>
-              {/* До подтверждения показываем оценку системы со знаком «примерно»:
+              {/* До подтверждения показываем предложение системы со знаком «примерно»:
                   это ещё не карма, а прогноз. */}
               {approved ? `+${deed.finalScore}` : `~${deed.baseScore}`}
             </span>

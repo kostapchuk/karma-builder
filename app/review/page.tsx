@@ -38,15 +38,15 @@ export default function ReviewPage() {
   return (
     <main className="page">
       <h1 className="karma-total" style={{ fontSize: 24 }}>
-        На ревью
+        На проверке
       </h1>
 
       {waiting.length > 0 && (
         <p className="hint" style={{ padding: '0 4px', marginTop: -8 }}>
-          {waiting.length} {plural(waiting.length, 'дело ждёт', 'дела ждут', 'дел ждут')} оценки.
+          {waiting.length} {plural(waiting.length, 'дело ждёт', 'дела ждут', 'дел ждут')} проверки.
           {REVIEWER_SLOTS.length === 1
-            ? ' Карма начислится, когда рецензент поставит балл.'
-            : ' Карма начислится, когда ответят все рецензенты: итог — среднее их оценок.'}
+            ? ' Карма начислится, когда проверяющий поставит балл.'
+            : ' Карма начислится, когда ответят все проверяющие: итог — среднее их баллов.'}
         </p>
       )}
 
@@ -65,7 +65,7 @@ export default function ReviewPage() {
       {open && <ShareReviewLinks deed={open} />}
 
       <button className="btn secondary" disabled={refreshing} onClick={() => void refresh()}>
-        {refreshing ? 'Обновляем…' : 'Проверить, не оценили ли'}
+        {refreshing ? 'Обновляем…' : 'Обновить'}
       </button>
     </main>
   );

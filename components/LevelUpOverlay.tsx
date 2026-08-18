@@ -26,7 +26,7 @@ export function LevelUpOverlay({ level, badges, onDismiss }: Props) {
         <div className="ring">🎉</div>
         <h2>{level === null ? 'Новый бейдж' : `Уровень ${level}`}</h2>
         <div className="hint">
-          {level === null ? 'Дело подтвердили рецензенты' : levelTitle(level)}
+          {level === null ? 'Дело подтвердили проверяющие' : levelTitle(level)}
         </div>
         {badges.length > 0 && (
           <div className="badge-grid" style={{ marginTop: 20 }}>

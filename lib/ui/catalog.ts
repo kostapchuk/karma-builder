@@ -55,3 +55,11 @@ export function plural(n: number, one: string, few: string, many: string): strin
   if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
   return many;
 }
+
+/**
+ * Версия сборки, вшитая из package.json (см. next.config.mjs).
+ *
+ * Экспорт статический, читать package.json в рантайме неоткуда — поэтому
+ * значение попадает в бандл на сборке, и после бампа нужен передеплой.
+ */
+export const APP_VERSION = `v${process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0'}`;

@@ -10,7 +10,7 @@ import { useMainButton } from '@/components/useMainButton';
 import { useAppStore } from '@/lib/store/useAppStore';
 import { hapticImpact } from '@/lib/telegram/haptics';
 import { shareInvite } from '@/lib/telegram/share';
-import { plural } from '@/lib/ui/catalog';
+import { APP_VERSION, plural } from '@/lib/ui/catalog';
 
 const RECENT_LIMIT = 5;
 
@@ -84,15 +84,15 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Главное новое состояние V2: дела, которые ждут чужой оценки. */}
+      {/* Главное новое состояние V2: дела, которые ждут чужой проверки. */}
       <Link href="/review" className="card row" style={{ textDecoration: 'none' }}>
         <span className="icon-badge">⏳</span>
         <span className="body">
-          <b style={{ display: 'block' }}>На ревью</b>
+          <b style={{ display: 'block' }}>На проверке</b>
           <span className="hint">
             {counts.pending === 0
               ? 'Все дела проверены'
-              : `${counts.pending} ${plural(counts.pending, 'дело ждёт', 'дела ждут', 'дел ждут')} оценки`}
+              : `${counts.pending} ${plural(counts.pending, 'дело ждёт', 'дела ждут', 'дел ждут')} проверки`}
           </span>
         </span>
         <span className="spacer" />
@@ -164,6 +164,15 @@ export default function HomePage() {
           </button>
         )}
       </nav>
+
+      {/*
+        Версия сборки — последней строкой главной. Нужна не столько
+        пользователю, сколько нам: по ней видно, что именно открыто на
+        устройстве, когда поведение описывают словами.
+      */}
+      <div className="hint" style={{ textAlign: 'center', opacity: 0.6 }}>
+        Karma Builder {APP_VERSION}
+      </div>
 
       {celebration && (
         <LevelUpOverlay
